@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -231,7 +232,7 @@ export function TableManager({
             <div className="text-3xl font-bold text-amber-500">{stats.avgFrag}</div>
           </Card>
           <Card className="bg-white border-none shadow-sm rounded-2xl p-6">
-            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Cache Hit Ratio</div>
+            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Buffer Cache Hit Ratio</div>
             <div className="text-3xl font-bold text-emerald-500">91.4%</div>
           </Card>
           <Card className="bg-white border-none shadow-sm rounded-2xl p-6">

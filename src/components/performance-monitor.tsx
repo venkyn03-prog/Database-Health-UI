@@ -3,22 +3,13 @@
 
 import * as React from "react"
 import { 
-  BarChart, 
   Activity, 
   Zap, 
-  Search, 
   Clock, 
-  RefreshCw, 
-  AlertTriangle,
-  ChevronRight,
-  Info,
-  MoreVertical,
   History,
-  FileCode,
-  Lock,
-  ExternalLink,
-  Code,
   ShieldAlert,
+  Code,
+  Lock,
   ArrowDown
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -45,8 +36,8 @@ import { cn } from "@/lib/utils"
 const METRICS = [
   { id: 'deadlocks', label: "Deadlocks (24h)", value: "7", subtext: "+3 vs yesterday", color: "text-rose-600" },
   { id: 'lock-wait', label: "Lock wait time", value: "1.2s", subtext: "Avg per request", color: "text-amber-600" },
-  { id: 'cache', label: "Cache hit ratio", value: "91.4%", subtext: "Target >95%", color: "text-slate-800" },
-  { id: 'frag', label: "Avg fragmentation", value: "24.3%", subtext: "6 tables >30%", color: "text-rose-600" },
+  { id: 'cache', label: "Buffer Cache Hit Ratio", value: "91.4%", subtext: "Target >95%", color: "text-emerald-600" },
+  { id: 'frag', label: "Index Fragmentation", value: "24.3%", subtext: "6 tables >30%", color: "text-rose-600" },
   { id: 'slow-q', label: "Slow queries", value: "243", subtext: "Threshold >1.0s", color: "text-amber-600" },
   { id: 'missing-idx', label: "Missing indexes", value: "11", subtext: "Across 7 tables", color: "text-amber-600" },
 ]
