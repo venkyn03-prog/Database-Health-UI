@@ -93,7 +93,6 @@ export function MaintenancePlanner({
     if (selectedTaskId) {
       const task = tasks.find(t => t.id === selectedTaskId)
       
-      // Validation
       const today = new Date().toISOString().split('T')[0]
       if (scheduleForm.startDate < today) {
         toast({
@@ -299,7 +298,6 @@ export function MaintenancePlanner({
         </Card>
       </section>
 
-      {/* Create Dialog */}
       <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
@@ -415,7 +413,6 @@ export function MaintenancePlanner({
         </DialogContent>
       </Dialog>
 
-      {/* Edit Dialog */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
