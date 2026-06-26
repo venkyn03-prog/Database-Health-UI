@@ -14,7 +14,9 @@ import {
   Archive,
   Search,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  ChevronDown,
+  FileType
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -29,8 +31,19 @@ import { useToast } from "@/hooks/use-toast"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
+import * as XLSX from 'xlsx'
+import { cn } from "@/lib/utils"
 
 type ReportType = 'health' | 'stats' | 'archival' | 'maintenance'
+type ExportFormat = 'excel' | 'pdf' | 'csv'
 
 export function ReportsManager({ activeDb }: { activeDb: string }) {
   const [selectedDb, setSelectedDb] = React.useState(activeDb)
@@ -60,34 +73,70 @@ export function ReportsManager({ activeDb }: { activeDb: string }) {
     ]
   }
 
-  const handleExport = () => {
+  const handleExport = (format: ExportFormat) => {
     setIsGenerating(true)
+    const data = MOCK_DATA[reportType]
+    const fileName = `${selectedDb}_${reportType}_report_${new Date().toISOString().split('T')[0]}`
+
     setTimeout(() => {
-      let csvContent = ""
-      const data = MOCK_DATA[reportType]
-      
-      if (reportType === 'health') {
-        csvContent = "Metric,Value,Status,Description\n" + data.map((e: any) => `${e.metric},${e.value},${e.status},${e.description}`).join("\n")
-      } else if (reportType === 'stats') {
-        csvContent = "Table,Schema,Rows,Size,Growth\n" + data.map((e: any) => `${e.table},${e.schema},${e.rows},${e.size},${e.growth}`).join("\n")
-      } else {
-        csvContent = "Key,Details,Status,Time\n" + data.map((e: any) => Object.values(e).join(",")).join("\n")
+      try {
+        if (format === 'csv') {
+          let csvContent = ""
+          if (reportType === 'health') {
+            csvContent = "Metric,Value,Status,Description\n" + data.map((e: any) => `${e.metric},${e.value},${e.status},${e.description}`).join("\n")
+          } else if (reportType === 'stats') {
+            csvContent = "Table,Schema,Rows,Size,Growth\n" + data.map((e: any) => `${e.table},${e.schema},${e.rows},${e.size},${e.growth}`).join("\n")
+          } else {
+            csvContent = Object.keys(data[0]).join(",") + "\n" + data.map((e: any) => Object.values(e).join(",")).join("\n")
+          }
+          const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+          const url = URL.createObjectURL(blob)
+          const link = document.createElement("a")
+          link.setAttribute("href", url)
+          link.setAttribute("download", `${fileName}.csv`)
+          document.body.appendChild(link)
+          link.click()
+          document.body.removeChild(link)
+        } else if (format === 'excel') {
+          const worksheet = XLSX.utils.json_to_sheet(data)
+          const workbook = XLSX.utils.book_new()
+          XLSX.utils.book_append_sheet(workbook, worksheet, reportType.toUpperCase())
+          XLSX.writeFile(workbook, `${fileName}.xlsx`)
+        } else if (format === 'pdf') {
+          const doc = new jsPDF()
+          doc.setFontSize(18)
+          doc.text(`${selectedDb} - ${reportType.toUpperCase()} REPORT`, 14, 22)
+          doc.setFontSize(11)
+          doc.setTextColor(100)
+          doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 30)
+          
+          const headers = Object.keys(data[0]).map(h => h.toUpperCase())
+          const body = data.map(obj => Object.values(obj))
+          
+          autoTable(doc, {
+            head: [headers],
+            body: body,
+            startY: 40,
+            theme: 'striped',
+            headStyles: { fillColor: [30, 142, 62] },
+          })
+          
+          doc.save(`${fileName}.pdf`)
+        }
+
+        toast({
+          title: "Report Exported",
+          description: `Comprehensive ${reportType} report for ${selectedDb} saved as ${format.toUpperCase()}.`,
+        })
+      } catch (error) {
+        toast({
+          variant: "destructive",
+          title: "Export Failed",
+          description: "An error occurred while generating your report.",
+        })
+      } finally {
+        setIsGenerating(false)
       }
-
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement("a")
-      link.setAttribute("href", url)
-      link.setAttribute("download", `${selectedDb}_${reportType}_report_${new Date().toISOString().split('T')[0]}.csv`)
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-
-      setIsGenerating(false)
-      toast({
-        title: "Report Exported",
-        description: `Comprehensive ${reportType} report for ${selectedDb} downloaded.`,
-      })
     }, 1500)
   }
 
@@ -135,14 +184,41 @@ export function ReportsManager({ activeDb }: { activeDb: string }) {
                   </Select>
                 </div>
                 <div className="pt-4 border-t">
-                  <Button 
-                    onClick={handleExport} 
-                    disabled={isGenerating} 
-                    className="w-full h-11 bg-primary hover:bg-primary/90 text-white font-bold rounded-xl shadow-lg shadow-primary/10 gap-2"
-                  >
-                    {isGenerating ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-                    Export to CSV
-                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button 
+                        disabled={isGenerating} 
+                        className="w-full h-11 bg-primary hover:bg-primary/90 text-white font-bold rounded-xl shadow-lg shadow-primary/10 gap-2"
+                      >
+                        {isGenerating ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                        Generate Report
+                        <ChevronDown className="h-3 w-3 ml-auto opacity-50" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-56 rounded-xl p-2" align="end">
+                      <DropdownMenuItem onClick={() => handleExport('excel')} className="gap-2 py-3 rounded-lg cursor-pointer">
+                        <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
+                        <div className="flex flex-col">
+                          <span className="text-xs font-bold">Excel Document</span>
+                          <span className="text-[9px] text-slate-400">Best for analysis (.xlsx)</span>
+                        </div>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleExport('pdf')} className="gap-2 py-3 rounded-lg cursor-pointer">
+                        <FileType className="h-4 w-4 text-rose-600" />
+                        <div className="flex flex-col">
+                          <span className="text-xs font-bold">PDF Format</span>
+                          <span className="text-[9px] text-slate-400">Best for printing (.pdf)</span>
+                        </div>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleExport('csv')} className="gap-2 py-3 rounded-lg cursor-pointer">
+                        <FileText className="h-4 w-4 text-slate-600" />
+                        <div className="flex flex-col">
+                          <span className="text-xs font-bold">CSV Text</span>
+                          <span className="text-[9px] text-slate-400">Raw data export (.csv)</span>
+                        </div>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </div>
             </Card>
@@ -269,4 +345,3 @@ export function ReportsManager({ activeDb }: { activeDb: string }) {
     </div>
   )
 }
-const cn = (...classes: any[]) => classes.filter(Boolean).join(' ')
