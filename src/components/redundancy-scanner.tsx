@@ -14,7 +14,9 @@ import {
   Info,
   CheckCircle2,
   X,
-  Table as TableIcon
+  Table as TableIcon,
+  Zap,
+  Activity
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -43,33 +45,33 @@ import { cn } from "@/lib/utils"
 import { toast } from "@/hooks/use-toast"
 import { MaintenanceAction } from "@/app/page"
 
-type RedundantTable = {
+type RedundantItem = {
   name: string
-  reason: "Naming issue" | "Zero reads" | "Duplicate schema"
+  type: "Table" | "Index"
+  reason: "Naming issue" | "Zero reads" | "Duplicate schema" | "Unused"
   lastAccessed: string
   size: string
 }
 
-const MOCK_REDUNDANCIES: Record<string, RedundantTable[]> = {
+const MOCK_REDUNDANCIES: Record<string, RedundantItem[]> = {
   "WebPortalDB": [
-    { name: "users_backup_2023", reason: "Naming issue", lastAccessed: "142 days ago", size: "1.2 GB" },
-    { name: "temp_orders_old", reason: "Naming issue", lastAccessed: "Never", size: "840 MB" },
-    { name: "logs_archive_test", reason: "Zero reads", lastAccessed: "210 days ago", size: "14.5 GB" },
-    { name: "customer_profiles_v2", reason: "Duplicate schema", lastAccessed: "12 days ago", size: "420 MB" },
-    { name: "audit_trail_tmp_01", reason: "Naming issue", lastAccessed: "Never", size: "3.2 GB" },
+    { name: "users_backup_2023", type: "Table", reason: "Naming issue", lastAccessed: "142 days ago", size: "1.2 GB" },
+    { name: "temp_orders_old", type: "Table", reason: "Naming issue", lastAccessed: "Never", size: "840 MB" },
+    { name: "IX_old_audit_trail", type: "Index", reason: "Unused", lastAccessed: "210 days ago", size: "2.5 GB" },
+    { name: "customer_profiles_v2", type: "Table", reason: "Duplicate schema", lastAccessed: "12 days ago", size: "420 MB" },
+    { name: "IX_temp_session", type: "Index", reason: "Unused", lastAccessed: "Never", size: "540 MB" },
   ],
   "ReportingDB": [
-    { name: "sales_2022_final", reason: "Zero reads", lastAccessed: "380 days ago", size: "45 GB" },
-    { name: "temp_results_backup", reason: "Naming issue", lastAccessed: "Never", size: "2.1 GB" },
-    { name: "legacy_reports_v1", reason: "Zero reads", lastAccessed: "1 year ago", size: "12.4 GB" },
+    { name: "sales_2022_final", type: "Table", reason: "Zero reads", lastAccessed: "380 days ago", size: "45 GB" },
+    { name: "IX_legacy_sales", type: "Index", reason: "Unused", lastAccessed: "1 year ago", size: "8.2 GB" },
+    { name: "legacy_reports_v1", type: "Table", reason: "Zero reads", lastAccessed: "1 year ago", size: "12.4 GB" },
   ]
 }
 
-const DEFAULT_REDUNDANCIES: RedundantTable[] = [
-  { name: "staging_data_temp_copy", reason: "Naming issue", lastAccessed: "89 days ago", size: "2.4 GB" },
-  { name: "old_audit_logs_archive", reason: "Zero reads", lastAccessed: "Never", size: "18.2 GB" },
-  { name: "legacy_metadata_v2", reason: "Duplicate schema", lastAccessed: "210 days ago", size: "540 MB" },
-  { name: "temp_transaction_log", reason: "Naming issue", lastAccessed: "Never", size: "4.1 GB" },
+const DEFAULT_REDUNDANCIES: RedundantItem[] = [
+  { name: "staging_data_temp_copy", type: "Table", reason: "Naming issue", lastAccessed: "89 days ago", size: "2.4 GB" },
+  { name: "old_audit_logs_archive", type: "Table", reason: "Zero reads", lastAccessed: "Never", size: "18.2 GB" },
+  { name: "IX_duplicate_idx", type: "Index", reason: "Duplicate schema", lastAccessed: "210 days ago", size: "540 MB" },
 ]
 
 export function RedundancyScanner({ 
@@ -83,22 +85,21 @@ export function RedundancyScanner({
 }) {
   const [isScanning, setIsScanning] = React.useState(false)
   const [hasScanned, setHasScanned] = React.useState(true)
-  const [scanResults, setScanResults] = React.useState<RedundantTable[]>(MOCK_REDUNDANCIES[activeDb] || DEFAULT_REDUNDANCIES)
+  const [scanResults, setScanResults] = React.useState<RedundantItem[]>(MOCK_REDUNDANCIES[activeDb] || DEFAULT_REDUNDANCIES)
   
-  const [selectedTables, setSelectedTables] = React.useState<string[]>([])
+  const [selectedItems, setSelectedItems] = React.useState<string[]>([])
   const [isTaskModalOpen, setIsTaskModalOpen] = React.useState(false)
   const [taskName, setTaskName] = React.useState("")
   const [currentActionType, setCurrentActionType] = React.useState<"Safe" | "Archive" | "Drop">("Safe")
 
-  // Update results when active database changes
   React.useEffect(() => {
     setScanResults(MOCK_REDUNDANCIES[activeDb] || DEFAULT_REDUNDANCIES)
-    setSelectedTables([])
+    setSelectedItems([])
   }, [activeDb])
 
   const handleRunScan = () => {
     setIsScanning(true)
-    setSelectedTables([])
+    setSelectedItems([])
     setTimeout(() => {
       const results = MOCK_REDUNDANCIES[activeDb] || DEFAULT_REDUNDANCIES
       setScanResults(results)
@@ -106,20 +107,20 @@ export function RedundancyScanner({
       setHasScanned(true)
       toast({
         title: "Scan Complete",
-        description: `Identified ${results.length} potentially redundant tables in ${activeDb}.`,
+        description: `Identified ${results.length} potentially redundant objects in ${activeDb}.`,
       })
     }, 1500)
   }
 
-  const isAllSelected = scanResults.length > 0 && selectedTables.length === scanResults.length
+  const isAllSelected = scanResults.length > 0 && selectedItems.length === scanResults.length
 
   const handleToggleAll = () => {
-    if (isAllSelected) setSelectedTables([])
-    else setSelectedTables(scanResults.map(t => t.name))
+    if (isAllSelected) setSelectedItems([])
+    else setSelectedItems(scanResults.map(t => t.name))
   }
 
   const handleToggleOne = (name: string) => {
-    setSelectedTables(prev => prev.includes(name) ? prev.filter(n => n !== name) : [...prev, name])
+    setSelectedItems(prev => prev.includes(name) ? prev.filter(n => n !== name) : [...prev, name])
   }
 
   const openTaskCreation = (type: "Safe" | "Archive" | "Drop") => {
@@ -129,7 +130,6 @@ export function RedundancyScanner({
   }
 
   const handleFinalizeTask = () => {
-    // Map actions
     const type = currentActionType === "Archive" ? "Archiving" : "Multi-Task"
     const actionName = currentActionType === "Archive" ? "Archiving" : (currentActionType as MaintenanceAction)
     
@@ -139,14 +139,14 @@ export function RedundancyScanner({
       actions: [actionName],
       server: serverName,
       database: activeDb,
-      tables: [...selectedTables]
+      tables: [...selectedItems]
     })
     
     setIsTaskModalOpen(false)
-    setSelectedTables([])
+    setSelectedItems([])
     toast({
       title: "Task Created",
-      description: `Task for ${selectedTables.length} tables added to the Task Manager.`,
+      description: `Task for ${selectedItems.length} objects added to the Task Manager.`,
     })
   }
 
@@ -157,7 +157,6 @@ export function RedundancyScanner({
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-20">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <h1 className="text-2xl font-bold text-slate-900">Redundancy Scan</h1>
@@ -166,7 +165,7 @@ export function RedundancyScanner({
           </Badge>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Pattern match: _backup, _old, _date, temp_</span>
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Pattern match: _backup, _old, temp_, unused_idx</span>
           <Button 
             onClick={handleRunScan}
             disabled={isScanning}
@@ -189,13 +188,12 @@ export function RedundancyScanner({
         </div>
       ) : (
         <>
-          {/* Summary Cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Card className="bg-white border-none shadow-sm rounded-xl">
               <CardContent className="p-4 space-y-1">
-                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">Total suspected</span>
-                <div className="text-xl font-bold text-slate-900">{scanResults.length} Tables</div>
-                <div className="text-[10px] text-amber-600 font-bold">Needs review</div>
+                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">Redundant suspected</span>
+                <div className="text-xl font-bold text-slate-900">{scanResults.length} Objects</div>
+                <div className="text-[10px] text-amber-600 font-bold">Tables & Indexes</div>
               </CardContent>
             </Card>
             <Card className="bg-white border-none shadow-sm rounded-xl">
@@ -207,6 +205,15 @@ export function RedundancyScanner({
             </Card>
             <Card className="bg-white border-none shadow-sm rounded-xl">
               <CardContent className="p-4 space-y-1">
+                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">Unused Indexes</span>
+                <div className="text-xl font-bold text-slate-900">
+                  {scanResults.filter(t => t.type === "Index").length}
+                </div>
+                <div className="text-[10px] text-slate-400 font-bold">Zero read impact</div>
+              </CardContent>
+            </Card>
+            <Card className="bg-white border-none shadow-sm rounded-xl">
+              <CardContent className="p-4 space-y-1">
                 <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">Naming issues</span>
                 <div className="text-xl font-bold text-slate-900">
                   {scanResults.filter(t => t.reason === "Naming issue").length}
@@ -214,24 +221,14 @@ export function RedundancyScanner({
                 <div className="text-[10px] text-slate-400 font-bold">Pattern matches</div>
               </CardContent>
             </Card>
-            <Card className="bg-white border-none shadow-sm rounded-xl">
-              <CardContent className="p-4 space-y-1">
-                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">Duplicate schemas</span>
-                <div className="text-xl font-bold text-slate-900">
-                  {scanResults.filter(t => t.reason === "Duplicate schema").length}
-                </div>
-                <div className="text-[10px] text-slate-400 font-bold">Identical DDL</div>
-              </CardContent>
-            </Card>
           </div>
 
-          {/* Selection Bar */}
-          {selectedTables.length > 0 && (
+          {selectedItems.length > 0 && (
             <div className="flex items-center justify-between p-3 px-6 bg-[#E8F0FE] border border-[#D2E3FC] rounded-2xl animate-in slide-in-from-top-2 shadow-sm">
               <div className="flex items-center gap-3">
                 <span className="text-sm font-bold text-[#1967D2] mr-4 whitespace-nowrap flex items-center gap-2">
                   <div className="h-2 w-2 rounded-full bg-[#1967D2] animate-pulse" />
-                  {selectedTables.length} selected
+                  {selectedItems.length} selected
                 </span>
                 <div className="flex items-center gap-2">
                   <Button 
@@ -246,21 +243,21 @@ export function RedundancyScanner({
                     className="h-10 px-6 rounded-full bg-white hover:bg-amber-50 text-amber-600 border border-amber-100 font-bold shadow-sm gap-2"
                   >
                     <Archive className="h-4 w-4" />
-                    Mark for Archive
+                    Archive
                   </Button>
                   <Button 
                     onClick={() => openTaskCreation("Drop")} 
                     className="h-10 px-6 rounded-full bg-white hover:bg-rose-50 text-rose-600 border border-rose-100 font-bold shadow-sm gap-2"
                   >
                     <Trash2 className="h-4 w-4" />
-                    Flag to Drop
+                    Drop Object
                   </Button>
                 </div>
               </div>
               <Button 
                 variant="ghost" 
                 size="icon"
-                onClick={() => setSelectedTables([])}
+                onClick={() => setSelectedItems([])}
                 className="h-8 w-8 rounded-full text-slate-500 hover:bg-white/50"
               >
                 <X className="h-4 w-4" />
@@ -268,12 +265,11 @@ export function RedundancyScanner({
             </div>
           )}
 
-          {/* Results Table */}
           <Card className="bg-white border-none shadow-sm rounded-2xl overflow-hidden">
             <CardHeader className="p-6 pb-2 border-b border-slate-50 flex flex-row items-center justify-between space-y-0">
               <div>
                 <CardTitle className="text-sm font-bold text-slate-900">Redundancy findings</CardTitle>
-                <CardDescription className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">Identified via sys.dm_db_index_usage_stats & naming conventions</CardDescription>
+                <CardDescription className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">Identified via sys.dm_db_index_usage_stats & schema analysis</CardDescription>
               </div>
             </CardHeader>
             <CardContent className="p-0">
@@ -283,7 +279,8 @@ export function RedundancyScanner({
                     <TableHead className="w-12 text-center">
                       <Checkbox checked={isAllSelected} onCheckedChange={handleToggleAll} className="h-4 w-4" />
                     </TableHead>
-                    <TableHead className="h-10 text-[9px] font-bold uppercase text-slate-400">Table Name</TableHead>
+                    <TableHead className="h-10 text-[9px] font-bold uppercase text-slate-400">Object Name</TableHead>
+                    <TableHead className="h-10 text-[9px] font-bold uppercase text-slate-400">Type</TableHead>
                     <TableHead className="h-10 text-[9px] font-bold uppercase text-slate-400">Reason</TableHead>
                     <TableHead className="h-10 text-[9px] font-bold uppercase text-slate-400">Size</TableHead>
                     <TableHead className="h-10 text-[9px] font-bold uppercase text-slate-400 px-6">Last Accessed</TableHead>
@@ -291,47 +288,47 @@ export function RedundancyScanner({
                 </TableHeader>
                 <TableBody>
                   {scanResults.length > 0 ? (
-                    scanResults.map((table, i) => (
-                      <TableRow key={i} className={cn("group hover:bg-slate-50/50 transition-colors border-b border-slate-50 last:border-0", selectedTables.includes(table.name) && "bg-slate-50/80")}>
+                    scanResults.map((item, i) => (
+                      <TableRow key={i} className={cn("group hover:bg-slate-50/50 transition-colors border-b border-slate-50 last:border-0", selectedItems.includes(item.name) && "bg-slate-50/80")}>
                         <TableCell className="text-center">
-                          <Checkbox checked={selectedTables.includes(table.name)} onCheckedChange={() => handleToggleOne(table.name)} className="h-4 w-4" />
+                          <Checkbox checked={selectedItems.includes(item.name)} onCheckedChange={() => handleToggleOne(item.name)} className="h-4 w-4" />
                         </TableCell>
                         <TableCell className="py-3">
                           <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold text-slate-800">{table.name}</span>
-                            {table.lastAccessed === "Never" && (
-                              <Badge className="bg-rose-50 text-rose-500 border-none text-[8px] font-bold uppercase px-1.5 h-4">Obsolete</Badge>
-                            )}
+                            {item.type === "Index" ? <Zap className="h-3 w-3 text-amber-500" /> : <TableIcon className="h-3 w-3 text-slate-400" />}
+                            <span className="text-xs font-bold text-slate-800">{item.name}</span>
                           </div>
                         </TableCell>
+                        <TableCell className="py-3 text-[10px] font-bold text-slate-400 uppercase">{item.type}</TableCell>
                         <TableCell className="py-3">
                           <Badge 
                             className={cn(
                               "font-bold text-[8px] px-2 py-0.5 rounded border-none shadow-none uppercase tracking-tighter",
-                              table.reason === "Naming issue" && "bg-amber-50 text-amber-600",
-                              table.reason === "Zero reads" && "bg-rose-50 text-rose-600",
-                              table.reason === "Duplicate schema" && "bg-blue-50 text-blue-600"
+                              item.reason === "Naming issue" && "bg-amber-50 text-amber-600",
+                              item.reason === "Zero reads" && "bg-rose-50 text-rose-600",
+                              item.reason === "Unused" && "bg-purple-50 text-purple-600",
+                              item.reason === "Duplicate schema" && "bg-blue-50 text-blue-600"
                             )}
                           >
-                            {table.reason}
+                            {item.reason}
                           </Badge>
                         </TableCell>
                         <TableCell className="py-3 text-xs font-bold text-slate-600">
-                          {table.size}
+                          {item.size}
                         </TableCell>
                         <TableCell className="py-3 px-6">
                           <span className={cn(
                             "text-[10px] font-bold",
-                            table.lastAccessed === "Never" ? "text-rose-500" : "text-slate-400"
+                            item.lastAccessed === "Never" ? "text-rose-500" : "text-slate-400"
                           )}>
-                            {table.lastAccessed}
+                            {item.lastAccessed}
                           </span>
                         </TableCell>
                       </TableRow>
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={5} className="py-12 text-center text-slate-400 font-medium">
+                      <TableCell colSpan={6} className="py-12 text-center text-slate-400 font-medium">
                         <CheckCircle2 className="h-8 w-8 text-emerald-500 mx-auto mb-2 opacity-50" />
                         No redundancies identified in {activeDb}.
                       </TableCell>
@@ -344,7 +341,6 @@ export function RedundancyScanner({
         </>
       )}
 
-      {/* Task Creation Dialog */}
       <Dialog open={isTaskModalOpen} onOpenChange={setIsTaskModalOpen}>
         <DialogContent className="sm:max-w-[550px] rounded-[2rem]">
           <DialogHeader>
@@ -355,7 +351,7 @@ export function RedundancyScanner({
               Create {currentActionType} Task
             </DialogTitle>
             <DialogDescription className="text-sm font-medium">
-              You are about to create a maintenance task for {selectedTables.length} selected table(s).
+              Assign a maintenance action for {selectedItems.length} selected objects.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-6 py-4">
@@ -370,13 +366,13 @@ export function RedundancyScanner({
             </div>
 
             <div className="space-y-3">
-              <Label className="text-sm font-bold text-slate-700">Selected Tables ({selectedTables.length})</Label>
+              <Label className="text-sm font-bold text-slate-700">Affected Objects ({selectedItems.length})</Label>
               <div className="border rounded-2xl bg-slate-50/50 p-1 border-slate-100 overflow-hidden">
                 <ScrollArea className="h-[140px]">
                   <div className="p-3 grid grid-cols-2 gap-2">
-                    {selectedTables.map(t => (
+                    {selectedItems.map(t => (
                       <div key={t} className="flex items-center gap-2 p-2 bg-white rounded-xl border border-slate-100 shadow-sm">
-                        <TableIcon className="h-3.5 w-3.5 text-slate-400" />
+                        <Activity className="h-3.5 w-3.5 text-slate-400" />
                         <span className="text-[11px] font-bold text-slate-700 truncate">{t}</span>
                       </div>
                     ))}

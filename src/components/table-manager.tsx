@@ -13,7 +13,9 @@ import {
   ArrowLeft,
   Search as SearchIcon,
   Activity,
-  Plus
+  Plus,
+  Clock,
+  ShieldAlert
 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -418,7 +420,7 @@ export function TableManager({
                   { id: 'Archiving' as MaintenanceAction, icon: Archive, color: 'text-amber-500', bg: 'bg-amber-50', border: 'border-amber-100' },
                   { id: 'Index Rebuild' as MaintenanceAction, icon: Zap, color: 'text-blue-500', bg: 'bg-blue-50', border: 'border-blue-100' },
                   { id: 'Update Stats' as MaintenanceAction, icon: RefreshCw, color: 'text-emerald-500', bg: 'bg-emerald-50', border: 'border-emerald-100' },
-                  { id: 'Scanning' as MaintenanceAction, icon: SearchIcon, color: 'text-purple-500', bg: 'bg-purple-50', border: 'border-purple-100' },
+                  { id: 'Scanning' as MaintenanceAction, icon: ShieldAlert, color: 'text-purple-500', bg: 'bg-purple-50', border: 'border-purple-100' },
                 ].map((action) => (
                   <Button
                     key={action.id}

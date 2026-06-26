@@ -25,7 +25,8 @@ import {
   LayoutGrid,
   Play,
   CheckCircle2,
-  Settings2
+  Settings2,
+  ShieldCheck
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -69,6 +70,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
 import { Progress } from "@/components/ui/progress"
 import { toast } from "@/hooks/use-toast"
 
@@ -98,24 +100,20 @@ export function ArchiveManager({
   const [selectedTable, setSelectedTable] = React.useState<string | null>(null)
   const [search, setSearch] = React.useState("")
   const [activeTab, setActiveTab] = React.useState(initialTab)
+  const [maintainIntegrity, setMaintainIntegrity] = React.useState(true)
 
-  // Sync active tab when initialTab prop changes
   React.useEffect(() => {
     setActiveTab(initialTab)
   }, [initialTab])
 
-  // Schedule Modal State
   const [isScheduleModalOpen, setIsScheduleModalOpen] = React.useState(false)
   const [taskToSchedule, setTaskToSchedule] = React.useState<MaintenanceTask | null>(null)
   const [scheduleForm, setScheduleForm] = React.useState<ScheduleConfig>({
     frequency: 'Daily',
-    dayOfWeek: 'Monday',
-    dayOfMonth: 1,
     startDate: new Date().toISOString().split('T')[0],
     endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
   })
 
-  // Query Builder State
   const [queryRows, setQueryRows] = React.useState<QueryRow[]>([
     { id: '1', column: 'created_at', operator: '<=', value: "DATEADD(year, -5, GETDATE())", logic: 'AND' }
   ])
@@ -175,7 +173,7 @@ export function ArchiveManager({
 
   if (view === 'execution-view' && selectedTask) {
     const totalTables = selectedTask.tables.length
-    const completedTables = Math.floor(totalTables * 0.75) // Mock progress
+    const completedTables = Math.floor(totalTables * 0.75)
     const successRate = 98.4
     const duration = "1h 14m"
     const progressValue = (completedTables / totalTables) * 100
@@ -206,21 +204,18 @@ export function ArchiveManager({
             <div className="flex flex-col gap-1">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tables Completed</span>
               <div className="text-3xl font-bold text-slate-900">{completedTables} / {totalTables}</div>
-              <div className="text-[10px] text-slate-400 font-bold mt-1">Scope: All assigned tables</div>
             </div>
           </Card>
           <Card className="bg-white border-none shadow-sm rounded-2xl p-6">
             <div className="flex flex-col gap-1">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Success Rate</span>
               <div className="text-3xl font-bold text-emerald-600">{successRate}%</div>
-              <div className="text-[10px] text-emerald-600/60 font-bold mt-1">2 minor warnings reported</div>
             </div>
           </Card>
           <Card className="bg-white border-none shadow-sm rounded-2xl p-6">
             <div className="flex flex-col gap-1">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Duration</span>
               <div className="text-3xl font-bold text-slate-900">{duration}</div>
-              <div className="text-[10px] text-slate-400 font-bold mt-1">Elapsed time since trigger</div>
             </div>
           </Card>
         </div>
@@ -287,12 +282,12 @@ export function ArchiveManager({
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div>
-              <h1 className="text-2xl font-bold text-slate-900">Configure Criteria</h1>
+              <h1 className="text-2xl font-bold text-slate-900">Configure Archival Rules</h1>
               <div className="flex items-center gap-2 text-xs font-medium text-slate-400">
                 <TableIcon className="h-3 w-3" />
                 <span>{selectedTable}</span>
                 <ChevronRight className="h-3 w-3" />
-                <span className="text-primary font-bold">Archiving Settings</span>
+                <span className="text-primary font-bold">Dependency-Aware Extraction</span>
               </div>
             </div>
           </div>
@@ -302,92 +297,104 @@ export function ArchiveManager({
           <Card className="lg:col-span-8 bg-white border-none shadow-sm rounded-3xl overflow-hidden">
             <CardHeader className="p-8 border-b border-slate-50">
               <CardTitle className="text-lg font-bold">Selection Criteria</CardTitle>
-              <p className="text-sm text-slate-400">Define the WHERE clause for the archival extraction process.</p>
+              <p className="text-sm text-slate-400">Define the WHERE clause for extraction while maintaining referential integrity.</p>
             </CardHeader>
-            <CardContent className="p-8 space-y-4">
-              <div className="grid grid-cols-12 gap-4 mb-2">
-                <div className="col-span-3 text-[10px] font-bold text-slate-400 uppercase">Column Name</div>
-                <div className="col-span-2 text-[10px] font-bold text-slate-400 uppercase">Operator</div>
-                <div className="col-span-4 text-[10px] font-bold text-slate-400 uppercase">Criteria Value</div>
-                <div className="col-span-2 text-[10px] font-bold text-slate-400 uppercase">Logic</div>
-                <div className="col-span-1 text-[10px] font-bold text-slate-400 uppercase text-right">Action</div>
-              </div>
-
-              {queryRows.map((row) => (
-                <div key={row.id} className="grid grid-cols-12 gap-4 items-center animate-in fade-in slide-in-from-top-2">
-                  <div className="col-span-3">
-                    <span className="sr-only">Column Name</span>
-                    <Select value={row.column} onValueChange={(v) => updateRow(row.id, 'column', v)}>
-                      <SelectTrigger className="h-11 border-slate-200 rounded-xl bg-slate-50/50">
-                        <SelectValue placeholder="Column" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="created_at">created_at</SelectItem>
-                        <SelectItem value="status">status</SelectItem>
-                        <SelectItem value="id">id</SelectItem>
-                        <SelectItem value="transaction_type">transaction_type</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="col-span-2">
-                    <span className="sr-only">Operator</span>
-                    <Select value={row.operator} onValueChange={(v) => updateRow(row.id, 'operator', v)}>
-                      <SelectTrigger className="h-11 border-slate-200 rounded-xl bg-slate-50/50">
-                        <SelectValue placeholder="Op" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="=">=</SelectItem>
-                        <SelectItem value="!=">!=</SelectItem>
-                        <SelectItem value="<">{'<'}</SelectItem>
-                        <SelectItem value="<=">{'<='}</SelectItem>
-                        <SelectItem value=">">{'>'}</SelectItem>
-                        <SelectItem value=">=">{'>='}</SelectItem>
-                        <SelectItem value="LIKE">LIKE</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="col-span-4">
-                    <span className="sr-only">Criteria Value</span>
-                    <Input 
-                      placeholder="Value" 
-                      value={row.value || ""}
-                      onChange={(e) => updateRow(row.id, 'value', e.target.value)}
-                      className="h-11 border-slate-200 rounded-xl bg-slate-50/50"
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    <span className="sr-only">Logic</span>
-                    <Select value={row.logic} onValueChange={(v) => updateRow(row.id, 'logic', v)}>
-                      <SelectTrigger className="h-11 border-slate-200 rounded-xl bg-slate-50/50">
-                        <SelectValue placeholder="Logic" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="AND">AND</SelectItem>
-                        <SelectItem value="OR">OR</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="col-span-1 text-right">
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      onClick={() => removeQueryRow(row.id)}
-                      className="h-10 w-10 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+            <CardContent className="p-8 space-y-6">
+              <div className="flex items-center justify-between p-4 bg-blue-50/50 rounded-2xl border border-blue-100">
+                <div className="flex items-center gap-3">
+                  <ShieldCheck className="h-5 w-5 text-blue-600" />
+                  <div className="flex flex-col">
+                    <span className="text-sm font-bold text-blue-900">Referential Integrity Check</span>
+                    <span className="text-[10px] font-medium text-blue-600">Prevent orphan records by resolving child table dependencies.</span>
                   </div>
                 </div>
-              ))}
+                <Switch 
+                  checked={maintainIntegrity} 
+                  onCheckedChange={setMaintainIntegrity}
+                />
+              </div>
 
-              <Button 
-                variant="outline" 
-                onClick={addQueryRow}
-                className="mt-4 border-dashed border-2 border-slate-200 text-slate-400 hover:text-primary hover:border-primary hover:bg-slate-50 w-full h-12 rounded-xl font-bold"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Condition
-              </Button>
+              <div className="space-y-4">
+                <div className="grid grid-cols-12 gap-4 mb-2">
+                  <div className="col-span-3 text-[10px] font-bold text-slate-400 uppercase">Column Name</div>
+                  <div className="col-span-2 text-[10px] font-bold text-slate-400 uppercase">Operator</div>
+                  <div className="col-span-4 text-[10px] font-bold text-slate-400 uppercase">Criteria Value</div>
+                  <div className="col-span-2 text-[10px] font-bold text-slate-400 uppercase">Logic</div>
+                  <div className="col-span-1 text-[10px] font-bold text-slate-400 uppercase text-right">Action</div>
+                </div>
+
+                {queryRows.map((row) => (
+                  <div key={row.id} className="grid grid-cols-12 gap-4 items-center">
+                    <div className="col-span-3">
+                      <Select value={row.column} onValueChange={(v) => updateRow(row.id, 'column', v)}>
+                        <SelectTrigger className="h-11 border-slate-200 rounded-xl bg-slate-50/50">
+                          <SelectValue placeholder="Column" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="created_at">created_at</SelectItem>
+                          <SelectItem value="status">status</SelectItem>
+                          <SelectItem value="id">id</SelectItem>
+                          <SelectItem value="transaction_type">transaction_type</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="col-span-2">
+                      <Select value={row.operator} onValueChange={(v) => updateRow(row.id, 'operator', v)}>
+                        <SelectTrigger className="h-11 border-slate-200 rounded-xl bg-slate-50/50">
+                          <SelectValue placeholder="Op" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="=">=</SelectItem>
+                          <SelectItem value="!=">!=</SelectItem>
+                          <SelectItem value="<">{'<'}</SelectItem>
+                          <SelectItem value="<=">{'<='}</SelectItem>
+                          <SelectItem value=">">{'>'}</SelectItem>
+                          <SelectItem value=">=">{'>='}</SelectItem>
+                          <SelectItem value="LIKE">LIKE</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="col-span-4">
+                      <Input 
+                        placeholder="Value" 
+                        value={row.value || ""}
+                        onChange={(e) => updateRow(row.id, 'value', e.target.value)}
+                        className="h-11 border-slate-200 rounded-xl bg-slate-50/50"
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <Select value={row.logic} onValueChange={(v) => updateRow(row.id, 'logic', v)}>
+                        <SelectTrigger className="h-11 border-slate-200 rounded-xl bg-slate-50/50">
+                          <SelectValue placeholder="Logic" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="AND">AND</SelectItem>
+                          <SelectItem value="OR">OR</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="col-span-1 text-right">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => removeQueryRow(row.id)}
+                        className="h-10 w-10 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+
+                <Button 
+                  variant="outline" 
+                  onClick={addQueryRow}
+                  className="mt-4 border-dashed border-2 border-slate-200 text-slate-400 hover:text-primary hover:border-primary hover:bg-slate-50 w-full h-12 rounded-xl font-bold"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Condition
+                </Button>
+              </div>
             </CardContent>
             <CardFooter className="p-8 bg-slate-50 flex items-center justify-end border-t border-slate-100">
               <div className="flex items-center gap-3">
@@ -395,7 +402,7 @@ export function ArchiveManager({
                   Cancel
                 </Button>
                 <Button className="h-11 px-10 rounded-xl font-bold bg-primary text-white shadow-lg hover:shadow-primary/20 transition-all">
-                  Save
+                  Save Extraction Plan
                 </Button>
               </div>
             </CardFooter>
@@ -405,7 +412,7 @@ export function ArchiveManager({
             <Card className="bg-white border-none shadow-sm rounded-3xl overflow-hidden p-8">
               <div className="flex items-center gap-2 mb-6">
                 <Code className="h-5 w-5 text-primary" />
-                <h3 className="font-bold text-slate-900">Preview</h3>
+                <h3 className="font-bold text-slate-900">Query Preview</h3>
               </div>
               <div className="relative rounded-2xl bg-[#0F172A] p-6 font-mono text-sm leading-relaxed overflow-hidden min-h-[160px]">
                 <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500" />
@@ -424,6 +431,7 @@ export function ArchiveManager({
                       ))}
                     </>
                   )}
+                  {maintainIntegrity && "\n\n/* Dependency Resolution Enabled */"}
                 </pre>
               </div>
             </Card>
@@ -583,173 +591,107 @@ export function ArchiveManager({
 
       <Tabs defaultValue="Archiving" value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="bg-slate-100/80 p-1 h-12 rounded-xl mb-6 flex justify-start w-full overflow-x-auto no-scrollbar">
-          <TabsTrigger value="Archiving" className="rounded-lg px-6 font-bold text-xs gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
-            <Archive className="h-3.5 w-3.5 text-amber-500" />
-            Archiving
+          <TabsTrigger value="Archiving" className="rounded-lg px-6 font-bold text-xs gap-2">
+            <Archive className="h-3.5 w-3.5 text-amber-500" /> Archiving
           </TabsTrigger>
-          <TabsTrigger value="Index Rebuild" className="rounded-lg px-6 font-bold text-xs gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
-            <Zap className="h-3.5 w-3.5 text-blue-500" />
-            Index Rebuild
+          <TabsTrigger value="Index Rebuild" className="rounded-lg px-6 font-bold text-xs gap-2">
+            <Zap className="h-3.5 w-3.5 text-blue-500" /> Indexing
           </TabsTrigger>
-          <TabsTrigger value="Update Stats" className="rounded-lg px-6 font-bold text-xs gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
-            <RefreshCw className="h-3.5 w-3.5 text-emerald-500" />
-            Update Stats
+          <TabsTrigger value="Update Stats" className="rounded-lg px-6 font-bold text-xs gap-2">
+            <RefreshCw className="h-3.5 w-3.5 text-emerald-500" /> Stats
           </TabsTrigger>
-          <TabsTrigger value="Scanning" className="rounded-lg px-6 font-bold text-xs gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
-            <SearchIcon className="h-3.5 w-3.5 text-purple-500" />
-            Scanning
+          <TabsTrigger value="Scanning" className="rounded-lg px-6 font-bold text-xs gap-2">
+            <SearchIcon className="h-3.5 w-3.5 text-purple-500" /> Scanning
           </TabsTrigger>
-          <TabsTrigger value="Multi-Task" className="rounded-lg px-6 font-bold text-xs gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
-            <LayoutGrid className="h-3.5 w-3.5 text-slate-600" />
-            Others
+          <TabsTrigger value="Multi-Task" className="rounded-lg px-6 font-bold text-xs gap-2">
+            <LayoutGrid className="h-3.5 w-3.5 text-slate-600" /> Others
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value={activeTab} className="mt-0">
-          {filteredTasks.length === 0 ? (
-            <div className="py-20 flex flex-col items-center justify-center text-center bg-white border border-dashed rounded-3xl">
-              <Archive className="h-12 w-12 text-slate-200 mb-4" />
-              <h3 className="text-lg font-bold text-slate-700">No tasks found</h3>
-              <p className="text-sm text-slate-400 max-w-sm">
-                There are currently no {activeTab === "Multi-Task" ? "Multi-Action" : activeTab} tasks defined.
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredTasks.map((task) => {
-                const isConfigurable = task.type === 'Archiving' || 
-                                     task.type === 'Index Rebuild' || 
-                                     (task.type === 'Multi-Task' && (task.actions?.includes('Archiving') || task.actions?.includes('Index Rebuild')));
-                
-                return (
-                  <Card key={task.id} className="bg-white border-none shadow-sm rounded-2xl overflow-hidden group hover:ring-2 hover:ring-primary/10 transition-all flex flex-col min-h-[420px]">
-                    <CardHeader className="p-6 pb-4">
-                      <div className="flex items-start justify-between">
-                        <div className="space-y-2">
-                          <CardTitle className="text-base font-bold text-slate-900 truncate max-w-[220px]">{task.name}</CardTitle>
-                          <div className="flex items-center flex-wrap gap-2">
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Type:</span>
-                              <Badge 
-                                className={cn(
-                                  "font-bold text-[8px] px-1.5 py-0 rounded border-none uppercase tracking-tighter",
-                                  task.type === "Archiving" && "bg-amber-50 text-amber-600",
-                                  task.type === "Index Rebuild" && "bg-blue-50 text-blue-600",
-                                  task.type === "Update Stats" && "bg-emerald-50 text-emerald-600",
-                                  task.type === "Scanning" && "bg-purple-50 text-purple-600",
-                                  (task.type === "Multi-Task" || !['Archiving', 'Index Rebuild', 'Update Stats', 'Scanning'].includes(task.type)) && "bg-slate-100 text-slate-600"
-                                )}
-                              >
-                                {task.type === "Multi-Task" ? "Others" : task.type}
-                              </Badge>
-                            </div>
-                            <div className="flex items-center gap-1.5 ml-1 border-l pl-2 border-slate-100">
-                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Status:</span>
-                              {task.status === 'scheduled' ? (
-                                <Badge className="bg-emerald-500 text-white border-none font-bold text-[8px] uppercase px-1.5 py-0 rounded">Scheduled</Badge>
-                              ) : (
-                                <Badge className="bg-slate-100 text-slate-400 border-none font-bold text-[8px] uppercase px-1.5 py-0 rounded">Pending</Badge>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 rounded-full hover:bg-slate-50">
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-48 rounded-xl shadow-xl border-slate-100">
-                            <DropdownMenuItem onClick={() => handleViewExecution(task)} className="gap-2 py-2 cursor-pointer font-medium text-xs">
-                              <Play className="h-3.5 w-3.5 text-emerald-600" />
-                              View Execution
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredTasks.map((task) => {
+              const isConfigurable = task.type === 'Archiving' || 
+                                    task.type === 'Index Rebuild' || 
+                                    (task.type === 'Multi-Task' && (task.actions?.includes('Archiving') || task.actions?.includes('Index Rebuild')));
+              
+              return (
+                <Card key={task.id} className="bg-white border-none shadow-sm rounded-2xl overflow-hidden flex flex-col min-h-[400px]">
+                  <CardHeader className="p-6 pb-4">
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-2">
+                        <CardTitle className="text-base font-bold text-slate-900 truncate max-w-[200px]">{task.name}</CardTitle>
+                        <Badge className="bg-slate-100 text-slate-400 border-none font-bold text-[8px] uppercase">{task.type}</Badge>
                       </div>
-                    </CardHeader>
-                    <CardContent className="p-6 pt-0 space-y-5 flex-1 flex flex-col">
-                      <div className="grid grid-cols-2 gap-6">
-                        <div className="space-y-1.5">
-                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tight flex items-center gap-1">
-                            <Server className="h-2.5 w-2.5" /> Server
-                          </span>
-                          <div className="text-xs font-bold text-slate-700 truncate">{task.server}</div>
-                        </div>
-                        <div className="space-y-1.5">
-                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tight flex items-center gap-1">
-                            <Database className="h-2.5 w-2.5" /> Database
-                          </span>
-                          <div className="text-xs font-bold text-slate-700 truncate">{task.database}</div>
-                        </div>
-                      </div>
-
-                      <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100/50">
-                        <div className="flex items-center gap-3">
-                          <div className="h-8 w-8 rounded-xl bg-white flex items-center justify-center text-primary shadow-sm border border-slate-100">
-                            <TableIcon className="h-4 w-4" />
-                          </div>
-                          <div className="flex flex-col">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Scope</span>
-                            <span className="text-sm font-bold text-slate-900">{task.tables.length} Monitored Tables</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {task.actions && task.actions.length > 0 && (
-                        <div className="space-y-2">
-                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">Included Actions:</span>
-                          <div className="flex flex-wrap gap-1.5">
-                            {task.actions.map(a => (
-                              <Badge key={a} variant="outline" className="text-[8px] font-bold px-2 py-0.5 border-slate-200 text-slate-500 uppercase tracking-tighter">
-                                {a}
-                              </Badge>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="pt-2 border-t border-slate-50 mt-auto">
-                        <div className="text-[10px] font-extrabold text-slate-500 uppercase tracking-[0.1em] mb-1">Last Modified</div>
-                        <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                          <Clock className="h-3 w-3 text-primary" />
-                          {new Date(task.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-                        </div>
-                      </div>
-                    </CardContent>
-                    <CardFooter className="p-4 bg-slate-50/50 border-t border-slate-100">
-                      <div className="flex w-full gap-2">
-                        {isConfigurable && (
-                          <Button 
-                            variant="outline" 
-                            className="flex-1 h-11 text-[11px] font-bold text-slate-700 border-slate-200 bg-white hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 rounded-xl transition-all gap-2 shadow-sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleTaskClick(task);
-                            }}
-                          >
-                            <Settings2 className="h-4 w-4" />
-                            Configure
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 rounded-full hover:bg-slate-50">
+                            <MoreVertical className="h-4 w-4" />
                           </Button>
-                        )}
-                        <Button 
-                          variant="outline"
-                          className={cn(
-                            "bg-white border border-slate-200 text-slate-700 text-[11px] font-bold rounded-xl hover:bg-slate-100 shadow-sm gap-2 h-11",
-                            isConfigurable ? "flex-1" : "w-full"
-                          )}
-                          onClick={(e) => openScheduleDialog(e, task)}
-                        >
-                          <Clock className="h-4 w-4" />
-                          {isConfigurable ? "Schedule" : "Schedule Action"}
-                        </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-48 rounded-xl shadow-xl border-slate-100">
+                          <DropdownMenuItem onClick={() => handleViewExecution(task)} className="gap-2 py-2 cursor-pointer font-medium text-xs">
+                            <Play className="h-3.5 w-3.5 text-emerald-600" />
+                            View Execution
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="p-6 pt-0 space-y-4 flex-1">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tight flex items-center gap-1">
+                          <Server className="h-2.5 w-2.5" /> Server
+                        </span>
+                        <div className="text-xs font-bold text-slate-700 truncate">{task.server}</div>
                       </div>
-                    </CardFooter>
-                  </Card>
-                );
-              })}
-            </div>
-          )}
+                      <div className="space-y-1">
+                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tight flex items-center gap-1">
+                          <Database className="h-2.5 w-2.5" /> DB
+                        </span>
+                        <div className="text-xs font-bold text-slate-700 truncate">{task.database}</div>
+                      </div>
+                    </div>
+
+                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex items-center gap-3">
+                      <TableIcon className="h-4 w-4 text-primary" />
+                      <div className="flex flex-col">
+                        <span className="text-[9px] font-bold text-slate-400 uppercase">Scope</span>
+                        <span className="text-xs font-bold text-slate-900">{task.tables.length} Monitored Tables</span>
+                      </div>
+                    </div>
+
+                    <div className="pt-2">
+                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-tight mb-1">Last Modified</div>
+                      <div className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                        <Clock className="h-3 w-3 text-primary" />
+                        {new Date(task.createdAt).toLocaleDateString()}
+                      </div>
+                    </div>
+                  </CardContent>
+                  <CardFooter className="p-4 bg-slate-50/50 border-t border-slate-100 gap-2">
+                    {isConfigurable && (
+                      <Button 
+                        variant="outline" 
+                        className="flex-1 h-10 text-[11px] font-bold rounded-xl gap-2 bg-white"
+                        onClick={() => handleTaskClick(task)}
+                      >
+                        <Settings2 className="h-4 w-4" /> Configure
+                      </Button>
+                    )}
+                    <Button 
+                      variant="outline"
+                      className="flex-1 h-10 text-[11px] font-bold rounded-xl gap-2 bg-white"
+                      onClick={(e) => openScheduleDialog(e, task)}
+                    >
+                      <Clock className="h-4 w-4" /> Schedule
+                    </Button>
+                  </CardFooter>
+                </Card>
+              );
+            })}
+          </div>
         </TabsContent>
       </Tabs>
 
@@ -781,46 +723,12 @@ export function ArchiveManager({
                 </SelectContent>
               </Select>
             </div>
-
-            {scheduleForm.frequency === 'Weekly' && (
-              <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
-                <Label className="text-sm font-semibold">Run on day</Label>
-                <Select 
-                  value={scheduleForm.dayOfWeek || "Monday"} 
-                  onValueChange={(v) => setScheduleForm(prev => ({ ...prev, dayOfWeek: v }))}
-                >
-                  <SelectTrigger className="h-11 border-slate-200">
-                    <SelectValue placeholder="Select day" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(day => (
-                      <SelectItem key={day} value={day}>{day}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
-            {scheduleForm.frequency === 'Monthly' && (
-              <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
-                <Label className="text-sm font-semibold">Run on day of month (1-31)</Label>
-                <Input 
-                  type="number" 
-                  min={1} 
-                  max={31} 
-                  value={scheduleForm.dayOfMonth || 1}
-                  onChange={(e) => setScheduleForm(prev => ({ ...prev, dayOfMonth: parseInt(e.target.value) || 1 }))}
-                  className="h-11 border-slate-200"
-                />
-              </div>
-            )}
-
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-sm font-semibold text-slate-500">Start Date</Label>
                 <Input 
                   type="date" 
-                  value={scheduleForm.startDate || ""}
+                  value={scheduleForm.startDate}
                   onChange={(e) => setScheduleForm(prev => ({ ...prev, startDate: e.target.value }))}
                   className="h-11 border-slate-200"
                 />
@@ -829,7 +737,7 @@ export function ArchiveManager({
                 <Label className="text-sm font-semibold text-slate-500">End Date</Label>
                 <Input 
                   type="date" 
-                  value={scheduleForm.endDate || ""}
+                  value={scheduleForm.endDate}
                   onChange={(e) => setScheduleForm(prev => ({ ...prev, endDate: e.target.value }))}
                   className="h-11 border-slate-200"
                 />

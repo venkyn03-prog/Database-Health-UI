@@ -16,7 +16,8 @@ import {
   CheckCircle2,
   AlertCircle,
   ChevronDown,
-  FileType
+  FileType,
+  Activity
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -42,7 +43,7 @@ import autoTable from 'jspdf-autotable'
 import * as XLSX from 'xlsx'
 import { cn } from "@/lib/utils"
 
-type ReportType = 'health' | 'stats' | 'archival' | 'maintenance'
+type ReportType = 'health' | 'stats' | 'archival' | 'maintenance' | 'history'
 type ExportFormat = 'excel' | 'pdf' | 'csv'
 
 export function ReportsManager({ activeDb }: { activeDb: string }) {
@@ -56,20 +57,24 @@ export function ReportsManager({ activeDb }: { activeDb: string }) {
       { metric: "Cache Hit Ratio", value: "91.4%", status: "Warning", description: "Target >95%" },
       { metric: "Index Fragmentation", value: "24.3% Avg", status: "Healthy", description: "Standard threshold <30%" },
       { metric: "Active Deadlocks", value: "7 (24h)", status: "Critical", description: "Spike detected in Auth logs" },
+      { metric: "Slow Queries", value: "243 (24h)", status: "Warning", description: "Threshold >1.0s" },
     ],
     stats: [
-      { table: "WEB_AUTH_NOTES", schema: "auth", rows: "31.6M", size: "88.4 GB", growth: "+1.2%" },
-      { table: "WEB_AUDIT_TRAIL", schema: "audit", rows: "58.5M", size: "142 GB", growth: "+2.8%" },
-      { table: "USERS", schema: "auth", rows: "154K", size: "45 MB", growth: "+0.1%" },
+      { table: "WEB_AUTH_NOTES", schema: "auth", rows: "31.6M", size: "88.4 GB", frag: "68%" },
+      { table: "WEB_AUDIT_TRAIL", schema: "audit", rows: "58.5M", size: "142 GB", frag: "62%" },
+      { table: "PROV_CONSULT_NOTES", schema: "dbo", rows: "5.5M", size: "12.4 GB", frag: "52%" },
     ],
     archival: [
-      { task: "Q4 Archive", tables: "WEB_FILE_UPLOAD", reclaimed: "45.2 GB", date: "2024-03-10" },
-      { task: "Legacy Cleanup", tables: "SESSION_LOGS", reclaimed: "12.8 GB", date: "2024-03-05" },
+      { task: "Q4 Archive", tables: "WEB_FILE_UPLOAD", reclaimed: "45.2 GB", integrity: "Verified", date: "2024-03-10" },
+      { task: "Legacy Cleanup", tables: "SESSION_LOGS", reclaimed: "12.8 GB", integrity: "Verified", date: "2024-03-05" },
     ],
     maintenance: [
       { operation: "Index Rebuild", target: "WEB_AUTH_DETAILS", result: "Success", duration: "12m", time: "2h ago" },
       { operation: "Stats Refresh", target: "USERS", result: "Success", duration: "1m", time: "4h ago" },
-      { operation: "Archive Run", target: "AUDIT_TRAIL", result: "Failed", duration: "45m", time: "Yesterday" },
+    ],
+    history: [
+      { job: "Nightly Scan", db: "WebPortalDB", status: "Completed", dur: "1h 14m", time: "02:00 AM" },
+      { job: "Batch Archive", db: "WebPortalDB", status: "Completed", dur: "45m", time: "04:15 AM" },
     ]
   }
 
@@ -81,22 +86,14 @@ export function ReportsManager({ activeDb }: { activeDb: string }) {
     setTimeout(() => {
       try {
         if (format === 'csv') {
-          let csvContent = ""
-          if (reportType === 'health') {
-            csvContent = "Metric,Value,Status,Description\n" + data.map((e: any) => `${e.metric},${e.value},${e.status},${e.description}`).join("\n")
-          } else if (reportType === 'stats') {
-            csvContent = "Table,Schema,Rows,Size,Growth\n" + data.map((e: any) => `${e.table},${e.schema},${e.rows},${e.size},${e.growth}`).join("\n")
-          } else {
-            csvContent = Object.keys(data[0]).join(",") + "\n" + data.map((e: any) => Object.values(e).join(",")).join("\n")
-          }
+          const headers = Object.keys(data[0]).join(",")
+          const csvContent = headers + "\n" + data.map((e: any) => Object.values(e).join(",")).join("\n")
           const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
           const url = URL.createObjectURL(blob)
           const link = document.createElement("a")
           link.setAttribute("href", url)
           link.setAttribute("download", `${fileName}.csv`)
-          document.body.appendChild(link)
           link.click()
-          document.body.removeChild(link)
         } else if (format === 'excel') {
           const worksheet = XLSX.utils.json_to_sheet(data)
           const workbook = XLSX.utils.book_new()
@@ -104,29 +101,20 @@ export function ReportsManager({ activeDb }: { activeDb: string }) {
           XLSX.writeFile(workbook, `${fileName}.xlsx`)
         } else if (format === 'pdf') {
           const doc = new jsPDF()
-          doc.setFontSize(18)
           doc.text(`${selectedDb} - ${reportType.toUpperCase()} REPORT`, 14, 22)
-          doc.setFontSize(11)
-          doc.setTextColor(100)
-          doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 30)
-          
-          const headers = Object.keys(data[0]).map(h => h.toUpperCase())
-          const body = data.map(obj => Object.values(obj))
-          
           autoTable(doc, {
-            head: [headers],
-            body: body,
-            startY: 40,
+            head: [Object.keys(data[0]).map(h => h.toUpperCase())],
+            body: data.map(obj => Object.values(obj)),
+            startY: 30,
             theme: 'striped',
             headStyles: { fillColor: [30, 142, 62] },
           })
-          
           doc.save(`${fileName}.pdf`)
         }
 
         toast({
           title: "Report Exported",
-          description: `Comprehensive ${reportType} report for ${selectedDb} saved as ${format.toUpperCase()}.`,
+          description: `Report saved as ${format.toUpperCase()}.`,
         })
       } catch (error) {
         toast({
@@ -147,7 +135,7 @@ export function ReportsManager({ activeDb }: { activeDb: string }) {
           <FileText className="h-7 w-7 text-primary" />
           Reporting & Audit Center
         </h1>
-        <p className="text-sm text-slate-400 font-medium">Detailed database statistics, health reports, and maintenance logs for operational monitoring.</p>
+        <p className="text-sm text-slate-400 font-medium">Operational monitoring, troubleshooting, and compliance tracking center.</p>
       </div>
 
       <Tabs defaultValue="health" value={reportType} onValueChange={(v) => setReportType(v as ReportType)} className="w-full">
@@ -162,177 +150,63 @@ export function ReportsManager({ activeDb }: { activeDb: string }) {
             <Archive className="h-4 w-4" /> Archival Summary
           </TabsTrigger>
           <TabsTrigger value="maintenance" className="rounded-lg px-6 font-bold text-xs gap-2">
-            <History className="h-4 w-4" /> Maintenance Logs
+            <History className="h-4 w-4" /> Maintenance
+          </TabsTrigger>
+          <TabsTrigger value="history" className="rounded-lg px-6 font-bold text-xs gap-2">
+            <Activity className="h-4 w-4" /> Execution History
           </TabsTrigger>
         </TabsList>
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           <div className="lg:col-span-1 space-y-6">
-            <Card className="bg-white border-none shadow-sm rounded-2xl overflow-hidden p-6">
-              <h3 className="text-sm font-bold text-slate-900 mb-4">Report Configuration</h3>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Target Instance</label>
-                  <Select value={selectedDb} onValueChange={setSelectedDb}>
-                    <SelectTrigger className="h-10 rounded-xl border-slate-200 bg-slate-50/50">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="WebPortalDB">WebPortalDB</SelectItem>
-                      <SelectItem value="ReportingDB">ReportingDB</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="pt-4 border-t">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button 
-                        disabled={isGenerating} 
-                        className="w-full h-11 bg-primary hover:bg-primary/90 text-white font-bold rounded-xl shadow-lg shadow-primary/10 gap-2"
-                      >
-                        {isGenerating ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-                        Generate Report
-                        <ChevronDown className="h-3 w-3 ml-auto opacity-50" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-56 rounded-xl p-2" align="end">
-                      <DropdownMenuItem onClick={() => handleExport('excel')} className="gap-2 py-3 rounded-lg cursor-pointer">
-                        <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
-                        <div className="flex flex-col">
-                          <span className="text-xs font-bold">Excel Document</span>
-                          <span className="text-[9px] text-slate-400">Best for analysis (.xlsx)</span>
-                        </div>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleExport('pdf')} className="gap-2 py-3 rounded-lg cursor-pointer">
-                        <FileType className="h-4 w-4 text-rose-600" />
-                        <div className="flex flex-col">
-                          <span className="text-xs font-bold">PDF Format</span>
-                          <span className="text-[9px] text-slate-400">Best for printing (.pdf)</span>
-                        </div>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleExport('csv')} className="gap-2 py-3 rounded-lg cursor-pointer">
-                        <FileText className="h-4 w-4 text-slate-600" />
-                        <div className="flex flex-col">
-                          <span className="text-xs font-bold">CSV Text</span>
-                          <span className="text-[9px] text-slate-400">Raw data export (.csv)</span>
-                        </div>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </div>
-            </Card>
-
-            <Card className="bg-[#F0FDF4] border-none shadow-sm rounded-2xl p-6">
-              <div className="flex items-center gap-2 text-emerald-700 mb-2">
-                <ShieldCheck className="h-4 w-4" />
-                <h4 className="text-xs font-bold uppercase">Compliance Ready</h4>
-              </div>
-              <p className="text-[10px] text-emerald-600 font-medium leading-relaxed">
-                Reports generated here meet standard auditing requirements for database operational logs and performance tracking.
-              </p>
+            <Card className="bg-white border-none shadow-sm rounded-2xl p-6">
+              <h3 className="text-sm font-bold text-slate-900 mb-4">Export Options</h3>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button disabled={isGenerating} className="w-full bg-primary hover:bg-primary/90 text-white font-bold rounded-xl gap-2">
+                    {isGenerating ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                    Generate & Export
+                    <ChevronDown className="h-3 w-3 ml-auto opacity-50" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56 rounded-xl p-2" align="end">
+                  <DropdownMenuItem onClick={() => handleExport('excel')} className="gap-2 py-3 rounded-lg cursor-pointer">
+                    <FileSpreadsheet className="h-4 w-4 text-emerald-600" /> Excel (.xlsx)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExport('pdf')} className="gap-2 py-3 rounded-lg cursor-pointer">
+                    <FileType className="h-4 w-4 text-rose-600" /> PDF (.pdf)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExport('csv')} className="gap-2 py-3 rounded-lg cursor-pointer">
+                    <FileText className="h-4 w-4 text-slate-600" /> CSV (.csv)
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </Card>
           </div>
 
           <div className="lg:col-span-3">
             <Card className="bg-white border-none shadow-sm rounded-[2rem] overflow-hidden">
               <CardHeader className="p-8 border-b bg-slate-50/30">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="text-lg font-bold capitalize">{reportType} Preview</CardTitle>
-                    <CardDescription className="text-xs font-medium">Real-time data snapshot from {selectedDb}</CardDescription>
-                  </div>
-                  <Badge variant="outline" className="bg-white border-slate-200">Generated: Just Now</Badge>
-                </div>
+                <CardTitle className="text-lg font-bold capitalize">{reportType} Preview</CardTitle>
+                <CardDescription>Generated for {selectedDb}</CardDescription>
               </CardHeader>
               <CardContent className="p-0">
                 <Table>
                   <TableHeader className="bg-slate-50/50">
                     <TableRow>
-                      {reportType === 'health' && (
-                        <>
-                          <TableHead className="px-8 text-[10px] font-bold uppercase">Metric</TableHead>
-                          <TableHead className="text-[10px] font-bold uppercase">Value</TableHead>
-                          <TableHead className="text-[10px] font-bold uppercase">Status</TableHead>
-                          <TableHead className="px-8 text-[10px] font-bold uppercase text-right">Context</TableHead>
-                        </>
-                      )}
-                      {reportType === 'stats' && (
-                        <>
-                          <TableHead className="px-8 text-[10px] font-bold uppercase">Table</TableHead>
-                          <TableHead className="text-[10px] font-bold uppercase">Schema</TableHead>
-                          <TableHead className="text-[10px] font-bold uppercase">Rows</TableHead>
-                          <TableHead className="text-[10px] font-bold uppercase">Size</TableHead>
-                          <TableHead className="px-8 text-[10px] font-bold uppercase text-right">Growth</TableHead>
-                        </>
-                      )}
-                      {reportType === 'archival' && (
-                        <>
-                          <TableHead className="px-8 text-[10px] font-bold uppercase">Task</TableHead>
-                          <TableHead className="text-[10px] font-bold uppercase">Tables</TableHead>
-                          <TableHead className="text-[10px] font-bold uppercase">Reclaimed</TableHead>
-                          <TableHead className="px-8 text-[10px] font-bold uppercase text-right">Date</TableHead>
-                        </>
-                      )}
-                      {reportType === 'maintenance' && (
-                        <>
-                          <TableHead className="px-8 text-[10px] font-bold uppercase">Operation</TableHead>
-                          <TableHead className="text-[10px] font-bold uppercase">Target</TableHead>
-                          <TableHead className="text-[10px] font-bold uppercase">Result</TableHead>
-                          <TableHead className="text-[10px] font-bold uppercase">Dur.</TableHead>
-                          <TableHead className="px-8 text-[10px] font-bold uppercase text-right">Time</TableHead>
-                        </>
-                      )}
+                      {Object.keys(MOCK_DATA[reportType][0]).map(header => (
+                        <TableHead key={header} className="px-8 text-[10px] font-bold uppercase">{header}</TableHead>
+                      ))}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {MOCK_DATA[reportType].map((row: any, i: number) => (
                       <TableRow key={i} className="hover:bg-slate-50/50 transition-colors border-b last:border-0">
-                        {reportType === 'health' && (
-                          <>
-                            <TableCell className="px-8 py-4 font-bold text-slate-700">{row.metric}</TableCell>
-                            <TableCell className="text-xs font-bold text-slate-900">{row.value}</TableCell>
-                            <TableCell>
-                              <Badge className={cn(
-                                "text-[9px] font-bold uppercase border-none",
-                                row.status === 'Healthy' ? "bg-emerald-50 text-emerald-600" :
-                                row.status === 'Warning' ? "bg-amber-50 text-amber-600" : "bg-rose-50 text-rose-600"
-                              )}>{row.status}</Badge>
-                            </TableCell>
-                            <TableCell className="px-8 py-4 text-right text-[10px] font-medium text-slate-400">{row.description}</TableCell>
-                          </>
-                        )}
-                        {reportType === 'stats' && (
-                          <>
-                            <TableCell className="px-8 py-4 font-bold text-slate-700">{row.table}</TableCell>
-                            <TableCell className="text-[10px] uppercase font-bold text-slate-400">{row.schema}</TableCell>
-                            <TableCell className="text-xs font-bold text-slate-900">{row.rows}</TableCell>
-                            <TableCell className="text-xs font-bold text-slate-900">{row.size}</TableCell>
-                            <TableCell className="px-8 py-4 text-right text-xs font-bold text-emerald-600">{row.growth}</TableCell>
-                          </>
-                        )}
-                        {reportType === 'archival' && (
-                          <>
-                            <TableCell className="px-8 py-4 font-bold text-slate-700">{row.task}</TableCell>
-                            <TableCell className="text-xs font-medium text-slate-500">{row.tables}</TableCell>
-                            <TableCell className="text-xs font-bold text-emerald-600">{row.reclaimed}</TableCell>
-                            <TableCell className="px-8 py-4 text-right text-xs font-bold text-slate-400">{row.date}</TableCell>
-                          </>
-                        )}
-                        {reportType === 'maintenance' && (
-                          <>
-                            <TableCell className="px-8 py-4 font-bold text-slate-700">{row.operation}</TableCell>
-                            <TableCell className="text-xs font-medium text-slate-500">{row.target}</TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-1.5">
-                                {row.result === 'Success' ? <CheckCircle2 className="h-3 w-3 text-emerald-500" /> : <AlertCircle className="h-3 w-3 text-rose-500" />}
-                                <span className="text-xs font-bold text-slate-700">{row.result}</span>
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-xs font-bold text-slate-400">{row.duration}</TableCell>
-                            <TableCell className="px-8 py-4 text-right text-xs font-bold text-slate-400">{row.time}</TableCell>
-                          </>
-                        )}
+                        {Object.values(row).map((val: any, j: number) => (
+                          <TableCell key={j} className={cn("px-8 py-4 text-xs font-bold", j === 0 ? "text-slate-700" : "text-slate-500")}>
+                            {val}
+                          </TableCell>
+                        ))}
                       </TableRow>
                     ))}
                   </TableBody>
