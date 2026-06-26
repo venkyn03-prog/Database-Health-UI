@@ -63,22 +63,23 @@ export type TableData = {
   fragmentation: number
   lastRead: string
   deadlocks: number
+  slowQueries: number
   lastArchivedOn: string
   archivedTill: string
   usageContext: string
 }
 
 const ALL_MOCK_TABLES: TableData[] = [
-  { name: "Auth_Consult_Notes", schema: "dbo", status: "Healthy", statusVariant: "healthy", rowCount: "609,251", size: "420 MB", fragmentation: 8, lastRead: "1h ago", deadlocks: 0, lastArchivedOn: "2024-03-01", archivedTill: "2023-12-31", usageContext: "Last two scans - this table was accessed 14 times" },
-  { name: "Claims_inquiry_Response", schema: "dbo", status: "Healthy", statusVariant: "healthy", rowCount: "44,738", size: "85 MB", fragmentation: 12, lastRead: "2h ago", deadlocks: 0, lastArchivedOn: "2024-02-15", archivedTill: "2023-10-01", usageContext: "Last two scans - this table was accessed 8 times" },
-  { name: "POST_DISMISSALS", schema: "dbo", status: "Warning", statusVariant: "warning", rowCount: "1,586,110", size: "2.1 GB", fragmentation: 24, lastRead: "30m ago", deadlocks: 2, lastArchivedOn: "2024-01-20", archivedTill: "2023-09-01", usageContext: "Last two scans - this table was accessed 42 times" },
-  { name: "PROV_CONSULT_NOTES", schema: "dbo", status: "Critical", statusVariant: "critical", rowCount: "5,570,747", size: "12.4 GB", fragmentation: 52, lastRead: "15m ago", deadlocks: 8, lastArchivedOn: "2024-03-08", archivedTill: "2024-01-01", usageContext: "Last two scans - this table was accessed 112 times" },
-  { name: "REQUEST_LOG", schema: "audit", status: "Healthy", statusVariant: "healthy", rowCount: "331,196", size: "180 MB", fragmentation: 5, lastRead: "5m ago", deadlocks: 0, lastArchivedOn: "Never", archivedTill: "N/A", usageContext: "Last two scans - this table was accessed 210 times" },
-  { name: "USERS", schema: "auth", status: "Healthy", statusVariant: "healthy", rowCount: "154,494", size: "45 MB", fragmentation: 4, lastRead: "1m ago", deadlocks: 0, lastArchivedOn: "Never", archivedTill: "N/A", usageContext: "Last two scans - this table was accessed 450 times" },
-  { name: "WEB_AUDIT_TRAIL", schema: "audit", status: "Critical", statusVariant: "critical", rowCount: "58,548,194", size: "142 GB", fragmentation: 62, lastRead: "Now", deadlocks: 24, lastArchivedOn: "2024-03-10", archivedTill: "2023-12-01", usageContext: "Last two scans - this table was accessed 890 times" },
-  { name: "WEB_AUTH_DETAILS", schema: "auth", status: "Critical", statusVariant: "critical", rowCount: "22,069,814", size: "32.1 GB", fragmentation: 59, lastRead: "Now", deadlocks: 18, lastArchivedOn: "2024-03-12", archivedTill: "2024-02-01", usageContext: "Last two scans - this table was accessed 640 times" },
-  { name: "WEB_AUTH_NOTES", schema: "auth", status: "Critical", statusVariant: "critical", rowCount: "31,693,191", size: "88.4 GB", fragmentation: 68, lastRead: "Now", deadlocks: 32, lastArchivedOn: "2024-03-14", archivedTill: "2024-02-15", usageContext: "Last two scans - this table was accessed 2 times" },
-  { name: "USER_PROVIDERS", schema: "auth", status: "Critical", statusVariant: "critical", rowCount: "9,098,052", size: "8.2 GB", fragmentation: 48, lastRead: "2m ago", deadlocks: 12, lastArchivedOn: "2024-02-28", archivedTill: "2024-01-01", usageContext: "Last two scans - this table was accessed 180 times" },
+  { name: "Auth_Consult_Notes", schema: "dbo", status: "Healthy", statusVariant: "healthy", rowCount: "609,251", size: "420 MB", fragmentation: 8, lastRead: "1h ago", deadlocks: 0, slowQueries: 2, lastArchivedOn: "2024-03-01", archivedTill: "2023-12-31", usageContext: "Last two scans - this table was accessed 14 times" },
+  { name: "Claims_inquiry_Response", schema: "dbo", status: "Healthy", statusVariant: "healthy", rowCount: "44,738", size: "85 MB", fragmentation: 12, lastRead: "2h ago", deadlocks: 0, slowQueries: 0, lastArchivedOn: "2024-02-15", archivedTill: "2023-10-01", usageContext: "Last two scans - this table was accessed 8 times" },
+  { name: "POST_DISMISSALS", schema: "dbo", status: "Warning", statusVariant: "warning", rowCount: "1,586,110", size: "2.1 GB", fragmentation: 24, lastRead: "30m ago", deadlocks: 2, slowQueries: 5, lastArchivedOn: "2024-01-20", archivedTill: "2023-09-01", usageContext: "Last two scans - this table was accessed 42 times" },
+  { name: "PROV_CONSULT_NOTES", schema: "dbo", status: "Critical", statusVariant: "critical", rowCount: "5,570,747", size: "12.4 GB", fragmentation: 52, lastRead: "15m ago", deadlocks: 8, slowQueries: 12, lastArchivedOn: "2024-03-08", archivedTill: "2024-01-01", usageContext: "Last two scans - this table was accessed 112 times" },
+  { name: "REQUEST_LOG", schema: "audit", status: "Healthy", statusVariant: "healthy", rowCount: "331,196", size: "180 MB", fragmentation: 5, lastRead: "5m ago", deadlocks: 0, slowQueries: 1, lastArchivedOn: "Never", archivedTill: "N/A", usageContext: "Last two scans - this table was accessed 210 times" },
+  { name: "USERS", schema: "auth", status: "Healthy", statusVariant: "healthy", rowCount: "154,494", size: "45 MB", fragmentation: 4, lastRead: "1m ago", deadlocks: 0, slowQueries: 0, lastArchivedOn: "Never", archivedTill: "N/A", usageContext: "Last two scans - this table was accessed 450 times" },
+  { name: "WEB_AUDIT_TRAIL", schema: "audit", status: "Critical", statusVariant: "critical", rowCount: "58,548,194", size: "142 GB", fragmentation: 62, lastRead: "Now", deadlocks: 24, slowQueries: 45, lastArchivedOn: "2024-03-10", archivedTill: "2023-12-01", usageContext: "Last two scans - this table was accessed 890 times" },
+  { name: "WEB_AUTH_DETAILS", schema: "auth", status: "Critical", statusVariant: "critical", rowCount: "22,069,814", size: "32.1 GB", fragmentation: 59, lastRead: "Now", deadlocks: 18, slowQueries: 32, lastArchivedOn: "2024-03-12", archivedTill: "2024-02-01", usageContext: "Last two scans - this table was accessed 640 times" },
+  { name: "WEB_AUTH_NOTES", schema: "auth", status: "Critical", statusVariant: "critical", rowCount: "31,693,191", size: "88.4 GB", fragmentation: 68, lastRead: "Now", deadlocks: 32, slowQueries: 15, lastArchivedOn: "2024-03-14", archivedTill: "2024-02-15", usageContext: "Last two scans - this table was accessed 2 times" },
+  { name: "USER_PROVIDERS", schema: "auth", status: "Critical", statusVariant: "critical", rowCount: "9,098,052", size: "8.2 GB", fragmentation: 48, lastRead: "2m ago", deadlocks: 12, slowQueries: 8, lastArchivedOn: "2024-02-28", archivedTill: "2024-01-01", usageContext: "Last two scans - this table was accessed 180 times" },
 ]
 
 export function TableManager({ 
@@ -307,8 +308,12 @@ export function TableManager({
                 </TableHead>
                 <TableHead className="text-[10px] font-bold uppercase text-slate-400">Table name</TableHead>
                 <TableHead className="text-[10px] font-bold uppercase text-slate-400">Health</TableHead>
+                <TableHead className="text-[10px] font-bold uppercase text-slate-400">Rows</TableHead>
+                <TableHead className="text-[10px] font-bold uppercase text-slate-400">Size</TableHead>
                 <TableHead className="text-[10px] font-bold uppercase text-slate-400">Frag %</TableHead>
                 <TableHead className="text-[10px] font-bold uppercase text-slate-400">Deadlocks</TableHead>
+                <TableHead className="text-[10px] font-bold uppercase text-slate-400">Slow Qs</TableHead>
+                <TableHead className="text-[10px] font-bold uppercase text-slate-400">Last Read</TableHead>
                 <TableHead className="text-[10px] font-bold uppercase text-slate-400">Last Archive</TableHead>
                 <TableHead className="text-[10px] font-bold uppercase text-slate-400">Archived Till</TableHead>
                 <TableHead className="text-right text-[10px] font-bold uppercase text-slate-400 pr-8">Action</TableHead>
@@ -323,7 +328,7 @@ export function TableManager({
                   <TableCell>
                     <div className="flex flex-col">
                       <span className="text-sm font-bold text-slate-800">{table.name}</span>
-                      <span className="text-[9px] text-slate-400 font-bold uppercase">{table.size} · {table.rowCount} rows</span>
+                      <span className="text-[9px] text-slate-400 font-bold uppercase">{table.schema}</span>
                     </div>
                   </TableCell>
                   <TableCell>
@@ -331,6 +336,8 @@ export function TableManager({
                       {table.status}
                     </Badge>
                   </TableCell>
+                  <TableCell className="text-xs font-semibold text-slate-600">{table.rowCount}</TableCell>
+                  <TableCell className="text-xs font-semibold text-slate-600">{table.size}</TableCell>
                   <TableCell>
                     <span className={cn("text-xs font-bold", table.fragmentation > 30 ? "text-amber-600" : "text-slate-600")}>
                       {table.fragmentation}%
@@ -342,6 +349,8 @@ export function TableManager({
                       {table.deadlocks}
                     </div>
                   </TableCell>
+                  <TableCell className="text-xs font-bold text-amber-600">{table.slowQueries}</TableCell>
+                  <TableCell className="text-xs font-semibold text-slate-500">{table.lastRead}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1.5 text-xs font-bold text-slate-500">
                       <History className="h-3 w-3 text-primary opacity-50" />
