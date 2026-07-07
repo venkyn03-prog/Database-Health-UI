@@ -206,7 +206,6 @@ export function TableManager({
     return databases.filter(db => db.name !== activeDb)
   }, [databases, activeDb])
 
-  // Mock loading target tables based on DB selection
   const availableTargetTables = React.useMemo(() => {
     if (!targetDatabase) return []
     return ["MPM_ARCHIVE_MAIN", "HIST_AUDIT_LOGS", "LEGACY_STORAGE_TABLE", "COMPLIANCE_VAULT"]
