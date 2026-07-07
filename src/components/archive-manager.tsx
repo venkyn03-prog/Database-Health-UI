@@ -6,7 +6,6 @@ import {
   Archive, 
   Search, 
   MoreVertical, 
-  FileCode, 
   Server, 
   Database, 
   ArrowLeft, 
@@ -442,8 +441,7 @@ export function ArchiveManager({
   }
 
   if (view === 'task-details' && selectedTask) {
-    const isArchiving = selectedTask.type === 'Archiving' || selectedTask.actions?.includes('Archiving');
-    const isIndexRebuild = selectedTask.type === 'Index Rebuild' || selectedTask.actions?.includes('Index Rebuild');
+    const isArchiving = selectedTask.type === 'Archiving';
 
     return (
       <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500 pb-12">
@@ -469,11 +467,11 @@ export function ArchiveManager({
             <TableHeader className="bg-slate-50/50">
               <TableRow className="hover:bg-transparent border-none">
                 <TableHead className="h-12 px-8 text-[10px] font-bold uppercase text-slate-400">Table Name</TableHead>
+                {isArchiving && <TableHead className="h-12 text-[10px] font-bold uppercase text-slate-400">Target Table</TableHead>}
                 <TableHead className="h-12 text-[10px] font-bold uppercase text-slate-400">Status Info</TableHead>
                 <TableHead className="h-12 text-[10px] font-bold uppercase text-slate-400">Deadlocks</TableHead>
                 <TableHead className="h-12 text-[10px] font-bold uppercase text-slate-400">Slow Qs</TableHead>
                 <TableHead className="h-12 text-[10px] font-bold uppercase text-slate-400">Size</TableHead>
-                {isIndexRebuild && <TableHead className="h-12 text-[10px] font-bold uppercase text-slate-400">Index Strategy</TableHead>}
                 {isArchiving && <TableHead className="h-12 px-8 text-right text-[10px] font-bold uppercase text-slate-400">Action</TableHead>}
               </TableRow>
             </TableHeader>
@@ -487,10 +485,17 @@ export function ArchiveManager({
                       </div>
                       <div className="flex flex-col">
                         <span className="text-sm font-bold text-slate-700">{tableName}</span>
-                        <span className="text-[10px] font-bold text-slate-300 uppercase tracking-tighter">Monitored Resource</span>
+                        <span className="text-[10px] font-bold text-slate-300 uppercase tracking-tighter">Source</span>
                       </div>
                     </div>
                   </TableCell>
+                  {isArchiving && (
+                    <TableCell>
+                      <Badge variant="outline" className="bg-blue-50 text-blue-700 border-none text-[10px] font-bold">
+                        {selectedTask.tableMappings?.[tableName] || "N/A"}
+                      </Badge>
+                    </TableCell>
+                  )}
                   <TableCell>
                     {tableName.includes('UPLOAD') || tableName.includes('AUDIT') ? (
                       <Badge className="bg-rose-50 text-rose-500 border-none font-bold text-[9px] px-2 py-0.5 rounded-full flex items-center gap-1 w-fit">
@@ -521,19 +526,6 @@ export function ArchiveManager({
                       {tableName.includes('BYTES') || tableName.includes('UPLOAD') ? '45.0 GB' : '8.1 GB'}
                     </span>
                   </TableCell>
-                  {isIndexRebuild && (
-                    <TableCell>
-                      <Select defaultValue="rebuild">
-                        <SelectTrigger className="h-9 w-32 border-slate-200 bg-white text-[11px] font-bold rounded-lg shadow-none">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="rebuild">Rebuild</SelectItem>
-                          <SelectItem value="reorganize">Re-organize</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                  )}
                   {isArchiving && (
                     <TableCell className="px-8 text-right">
                       <Button 
@@ -542,7 +534,7 @@ export function ArchiveManager({
                         className="h-10 px-6 text-primary hover:no-underline text-[11px] font-bold rounded-xl gap-2"
                       >
                         <Settings2 className="h-4 w-4" />
-                        Configure Query
+                        Configure Rules
                       </Button>
                     </TableCell>
                   )}
@@ -558,12 +550,6 @@ export function ArchiveManager({
   const filteredTasks = tasks.filter(t => {
     const matchesSearch = t.name.toLowerCase().includes(search.toLowerCase()) || 
                           t.database.toLowerCase().includes(search.toLowerCase());
-    
-    if (activeTab === "Multi-Task") {
-      const isPrimaryType = ['Archiving', 'Index Rebuild', 'Update Stats', 'Scanning'].includes(t.type);
-      return matchesSearch && (!isPrimaryType || t.type === 'Multi-Task');
-    }
-    
     return matchesSearch && t.type === activeTab;
   })
 
@@ -603,17 +589,12 @@ export function ArchiveManager({
           <TabsTrigger value="Scanning" className="rounded-lg px-6 font-bold text-xs gap-2">
             <SearchIcon className="h-3.5 w-3.5 text-purple-500" /> Scanning
           </TabsTrigger>
-          <TabsTrigger value="Multi-Task" className="rounded-lg px-6 font-bold text-xs gap-2">
-            <LayoutGrid className="h-3.5 w-3.5 text-slate-600" /> Others
-          </TabsTrigger>
         </TabsList>
 
         <TabsContent value={activeTab} className="mt-0">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredTasks.map((task) => {
-              const isConfigurable = task.type === 'Archiving' || 
-                                    task.type === 'Index Rebuild' || 
-                                    (task.type === 'Multi-Task' && (task.actions?.includes('Archiving') || task.actions?.includes('Index Rebuild')));
+              const isConfigurable = task.type === 'Archiving' || task.type === 'Index Rebuild';
               
               return (
                 <Card key={task.id} className="bg-white border-none shadow-sm rounded-2xl overflow-hidden flex flex-col min-h-[400px]">
@@ -658,9 +639,19 @@ export function ArchiveManager({
                       <TableIcon className="h-4 w-4 text-primary" />
                       <div className="flex flex-col">
                         <span className="text-[9px] font-bold text-slate-400 uppercase">Scope</span>
-                        <span className="text-xs font-bold text-slate-900">{task.tables.length} Monitored Tables</span>
+                        <span className="text-xs font-bold text-slate-900">{task.tables.length} Monitored Items</span>
                       </div>
                     </div>
+
+                    {task.targetDatabase && (
+                      <div className="p-3 rounded-xl bg-blue-50 border border-blue-100 flex items-center gap-3">
+                        <Database className="h-4 w-4 text-blue-600" />
+                        <div className="flex flex-col">
+                          <span className="text-[9px] font-bold text-blue-400 uppercase">Target</span>
+                          <span className="text-xs font-bold text-blue-900">{task.targetDatabase}</span>
+                        </div>
+                      </div>
+                    )}
 
                     <div className="pt-2">
                       <div className="text-[10px] font-bold text-slate-400 uppercase tracking-tight mb-1">Last Modified</div>

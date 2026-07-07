@@ -30,19 +30,25 @@ export type ScheduleConfig = {
   endDate: string
 }
 
-export type MaintenanceAction = 'Archiving' | 'Index Rebuild' | 'Update Stats' | 'Scanning' | 'Safe' | 'Drop'
+export type MaintenanceAction = 
+  | 'Archiving'
+  | 'Index Rebuild'
+  | 'Update Stats'
+  | 'Scanning'
 
 export type MaintenanceTask = {
   id: string
   name: string
-  type: MaintenanceAction | 'Multi-Task'
-  actions?: MaintenanceAction[]
+  type: MaintenanceAction
+  jobCategory?: string // Specific classification (e.g. HEALTH_SCAN, DEADLOCK_COLLECTOR)
   server: string
   database: string
   tables: string[]
   createdAt: string
   status?: 'pending' | 'scheduled'
   schedule?: ScheduleConfig
+  targetDatabase?: string
+  tableMappings?: Record<string, string> // Source table -> Target table mapping
 }
 
 export type DatabaseInstance = {
@@ -104,16 +110,23 @@ const DEFAULT_TASKS: MaintenanceTask[] = [
     id: "task-1",
     name: "Q4 Data Cleanup",
     type: "Archiving",
+    jobCategory: "ARCHIVE_JOB",
     server: "SQLSRV-PROD-01",
     database: "WebPortalDB",
     tables: ["WEB_FILE_UPLOAD_2009", "WEB_FILE_BYTES_2009"],
     createdAt: "2024-03-10T14:30:00Z",
-    status: 'pending'
+    status: 'pending',
+    targetDatabase: "ReportingDB",
+    tableMappings: {
+      "WEB_FILE_UPLOAD_2009": "MPM_ARCHIVE_MAIN",
+      "WEB_FILE_BYTES_2009": "HIST_AUDIT_LOGS"
+    }
   },
   {
     id: "task-2",
     name: "Monthly Index Tuning",
     type: "Index Rebuild",
+    jobCategory: "INDEX_REBUILD",
     server: "SQLSRV-PROD-01",
     database: "WebPortalDB",
     tables: ["WEB_AUTH_DETAILS", "WEB_AUTH_NOTES"],
@@ -124,6 +137,7 @@ const DEFAULT_TASKS: MaintenanceTask[] = [
     id: "task-3",
     name: "Daily Stats Refresh",
     type: "Update Stats",
+    jobCategory: "STATISTICS_UPDATE",
     server: "SQLSRV-PROD-01",
     database: "WebPortalDB",
     tables: ["USERS", "USER_PROVIDERS"],
@@ -214,8 +228,9 @@ export default function SQLSentinelApp() {
     }
     setTasks(prev => [newTask, ...prev])
     
-    const primaryTypes = ['Archiving', 'Index Rebuild', 'Update Stats', 'Scanning'];
-    const targetTab = primaryTypes.includes(newTask.type) ? newTask.type : 'Multi-Task';
+    let targetTab = task.type === 'Archiving' ? 'Archiving' :
+                    task.type === 'Index Rebuild' ? 'Index Rebuild' :
+                    task.type === 'Update Stats' ? 'Update Stats' : 'Scanning'
     
     setActiveTaskTab(targetTab)
     setCurrentView("archive")
@@ -273,6 +288,7 @@ export default function SQLSentinelApp() {
             activeDb={activeDbName} 
             serverName={serverName} 
             monitoredTables={activeDb?.monitoredTables || []}
+            databases={databases}
             onCreateTask={handleCreateTask} 
           />
         )
@@ -288,6 +304,7 @@ export default function SQLSentinelApp() {
           <RedundancyScanner 
             activeDb={activeDbName} 
             serverName={serverName}
+            databases={databases}
             onCreateTask={handleCreateTask} 
           />
         )

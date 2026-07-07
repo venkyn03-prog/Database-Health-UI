@@ -5,14 +5,9 @@ import * as React from "react"
 import { 
   ShieldAlert, 
   Search, 
-  Database, 
   RefreshCw, 
-  Trash2, 
   Archive, 
   ShieldCheck,
-  AlertTriangle,
-  Info,
-  CheckCircle2,
   X,
   Table as TableIcon,
   Zap,
@@ -43,7 +38,14 @@ import { Label } from "@/components/ui/label"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
 import { toast } from "@/hooks/use-toast"
-import { MaintenanceAction } from "@/app/page"
+import { MaintenanceAction, DatabaseInstance } from "@/app/page"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 type RedundantItem = {
   name: string
@@ -77,20 +79,22 @@ const DEFAULT_REDUNDANCIES: RedundantItem[] = [
 export function RedundancyScanner({ 
   activeDb = "WebPortalDB", 
   serverName = "SQLSRV-PROD-01",
+  databases,
   onCreateTask 
 }: { 
   activeDb?: string, 
   serverName?: string,
+  databases: DatabaseInstance[],
   onCreateTask: (task: any) => void 
 }) {
   const [isScanning, setIsScanning] = React.useState(false)
-  const [hasScanned, setHasScanned] = React.useState(true)
   const [scanResults, setScanResults] = React.useState<RedundantItem[]>(MOCK_REDUNDANCIES[activeDb] || DEFAULT_REDUNDANCIES)
   
   const [selectedItems, setSelectedItems] = React.useState<string[]>([])
   const [isTaskModalOpen, setIsTaskModalOpen] = React.useState(false)
   const [taskName, setTaskName] = React.useState("")
-  const [currentActionType, setCurrentActionType] = React.useState<"Safe" | "Archive" | "Drop">("Safe")
+  const [selectedAction, setSelectedAction] = React.useState<MaintenanceAction>('Scanning')
+  const [targetDatabase, setTargetDatabase] = React.useState("")
 
   React.useEffect(() => {
     setScanResults(MOCK_REDUNDANCIES[activeDb] || DEFAULT_REDUNDANCIES)
@@ -104,7 +108,6 @@ export function RedundancyScanner({
       const results = MOCK_REDUNDANCIES[activeDb] || DEFAULT_REDUNDANCIES
       setScanResults(results)
       setIsScanning(false)
-      setHasScanned(true)
       toast({
         title: "Scan Complete",
         description: `Identified ${results.length} potentially redundant objects in ${activeDb}.`,
@@ -123,23 +126,31 @@ export function RedundancyScanner({
     setSelectedItems(prev => prev.includes(name) ? prev.filter(n => n !== name) : [...prev, name])
   }
 
-  const openTaskCreation = (type: "Safe" | "Archive" | "Drop") => {
-    setCurrentActionType(type)
-    setTaskName(`${type} Task - ${new Date().toLocaleDateString()}`)
+  const openTaskCreation = (initialAction: MaintenanceAction) => {
+    setSelectedAction(initialAction)
+    setTaskName(`${initialAction} Task - ${new Date().toLocaleDateString()}`)
+    setTargetDatabase("")
     setIsTaskModalOpen(true)
   }
 
   const handleFinalizeTask = () => {
-    const type = currentActionType === "Archive" ? "Archiving" : "Multi-Task"
-    const actionName = currentActionType === "Archive" ? "Archiving" : (currentActionType as MaintenanceAction)
-    
+    const isArchiving = selectedAction === 'Archiving'
+    if (isArchiving && !targetDatabase) {
+      toast({
+        variant: "destructive",
+        title: "Target Database Required",
+        description: "Please specify target database for archival operations.",
+      })
+      return
+    }
+
     onCreateTask({
       name: taskName,
-      type: type,
-      actions: [actionName],
+      type: selectedAction,
       server: serverName,
       database: activeDb,
-      tables: [...selectedItems]
+      tables: [...selectedItems],
+      targetDatabase: isArchiving ? targetDatabase : undefined
     })
     
     setIsTaskModalOpen(false)
@@ -149,6 +160,10 @@ export function RedundancyScanner({
       description: `Task for ${selectedItems.length} objects added to the Task Manager.`,
     })
   }
+
+  const availableTargets = React.useMemo(() => {
+    return databases.filter(db => db.name !== activeDb)
+  }, [databases, activeDb])
 
   const totalSize = scanResults.reduce((acc, curr) => {
     const val = parseFloat(curr.size)
@@ -167,7 +182,7 @@ export function RedundancyScanner({
         <div className="flex items-center gap-3">
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Pattern match: _backup, _old, temp_, unused_idx</span>
           <Button 
-            onClick={handleRunScan}
+            onClick={handleRunScan} 
             disabled={isScanning}
             className="h-9 bg-[#1E8E3E] hover:bg-[#1A7F37] text-white text-xs font-bold rounded-lg px-6 shadow-sm gap-2"
           >
@@ -232,24 +247,24 @@ export function RedundancyScanner({
                 </span>
                 <div className="flex items-center gap-2">
                   <Button 
-                    onClick={() => openTaskCreation("Safe")} 
+                    onClick={() => openTaskCreation("Scanning")} 
                     className="h-10 px-6 rounded-full bg-white hover:bg-emerald-50 text-emerald-600 border border-emerald-100 font-bold shadow-sm gap-2"
                   >
                     <ShieldCheck className="h-4 w-4" />
                     Mark Safe
                   </Button>
                   <Button 
-                    onClick={() => openTaskCreation("Archive")} 
+                    onClick={() => openTaskCreation("Archiving")} 
                     className="h-10 px-6 rounded-full bg-white hover:bg-amber-50 text-amber-600 border border-amber-100 font-bold shadow-sm gap-2"
                   >
                     <Archive className="h-4 w-4" />
                     Archive
                   </Button>
                   <Button 
-                    onClick={() => openTaskCreation("Drop")} 
-                    className="h-10 px-6 rounded-full bg-white hover:bg-rose-50 text-rose-600 border border-rose-100 font-bold shadow-sm gap-2"
+                    onClick={() => openTaskCreation("Update Stats")} 
+                    className="h-10 px-6 rounded-full bg-white hover:bg-blue-50 text-blue-600 border border-blue-100 font-bold shadow-sm gap-2"
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <RefreshCw className="h-4 w-4" />
                     Drop Object
                   </Button>
                 </div>
@@ -329,7 +344,6 @@ export function RedundancyScanner({
                   ) : (
                     <TableRow>
                       <TableCell colSpan={6} className="py-12 text-center text-slate-400 font-medium">
-                        <CheckCircle2 className="h-8 w-8 text-emerald-500 mx-auto mb-2 opacity-50" />
                         No redundancies identified in {activeDb}.
                       </TableCell>
                     </TableRow>
@@ -342,13 +356,11 @@ export function RedundancyScanner({
       )}
 
       <Dialog open={isTaskModalOpen} onOpenChange={setIsTaskModalOpen}>
-        <DialogContent className="sm:max-w-[550px] rounded-[2rem]">
+        <DialogContent className="sm:max-w-[650px] rounded-[2rem]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-xl font-bold">
-              {currentActionType === "Safe" ? <ShieldCheck className="h-6 w-6 text-emerald-500" /> : 
-               currentActionType === "Archive" ? <Archive className="h-6 w-6 text-amber-500" /> : 
-               <Trash2 className="h-6 w-6 text-rose-500" />}
-              Create {currentActionType} Task
+              <ShieldCheck className="h-6 w-6 text-emerald-500" />
+              Configure Maintenance Task
             </DialogTitle>
             <DialogDescription className="text-sm font-medium">
               Assign a maintenance action for {selectedItems.length} selected objects.
@@ -365,10 +377,43 @@ export function RedundancyScanner({
               />
             </div>
 
+            <div className="space-y-2">
+              <Label className="text-sm font-bold text-slate-700">Maintenance Type</Label>
+              <Select value={selectedAction} onValueChange={(v: MaintenanceAction) => setSelectedAction(v)}>
+                <SelectTrigger className="h-11 border-slate-200 rounded-xl bg-white">
+                  <SelectValue placeholder="Select Action" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Scanning">Scanning</SelectItem>
+                  <SelectItem value="Archiving">Archiving</SelectItem>
+                  <SelectItem value="Index Rebuild">Index Rebuild</SelectItem>
+                  <SelectItem value="Update Stats">Update Stats</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {selectedAction === 'Archiving' && (
+              <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
+                <div className="space-y-2">
+                  <Label className="text-sm font-bold text-slate-700">Target Database</Label>
+                  <Select value={targetDatabase} onValueChange={setTargetDatabase}>
+                    <SelectTrigger className="h-11 border-slate-200 rounded-xl bg-white">
+                      <SelectValue placeholder="Select Target DB" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableTargets.map(db => (
+                        <SelectItem key={db.name} value={db.name}>{db.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
+
             <div className="space-y-3">
               <Label className="text-sm font-bold text-slate-700">Affected Objects ({selectedItems.length})</Label>
               <div className="border rounded-2xl bg-slate-50/50 p-1 border-slate-100 overflow-hidden">
-                <ScrollArea className="h-[140px]">
+                <ScrollArea className="h-[120px]">
                   <div className="p-3 grid grid-cols-2 gap-2">
                     {selectedItems.map(t => (
                       <div key={t} className="flex items-center gap-2 p-2 bg-white rounded-xl border border-slate-100 shadow-sm">
@@ -385,12 +430,12 @@ export function RedundancyScanner({
             <Button variant="outline" onClick={() => setIsTaskModalOpen(false)} className="rounded-xl font-bold h-11 px-8">Cancel</Button>
             <Button 
               onClick={handleFinalizeTask} 
-              disabled={!taskName} 
+              disabled={!taskName || !selectedAction || (selectedAction === 'Archiving' && !targetDatabase)} 
               className={cn(
                 "font-bold h-11 px-10 rounded-xl shadow-lg text-white",
-                currentActionType === "Safe" ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-100" :
-                currentActionType === "Archive" ? "bg-amber-600 hover:bg-amber-700 shadow-amber-100" :
-                "bg-rose-600 hover:bg-rose-700 shadow-rose-100"
+                selectedAction === 'Scanning' ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-100" :
+                selectedAction === 'Archiving' ? "bg-amber-600 hover:bg-amber-700 shadow-amber-100" :
+                "bg-slate-600 hover:bg-slate-700 shadow-slate-100"
               )}
             >
               Confirm & Create Task

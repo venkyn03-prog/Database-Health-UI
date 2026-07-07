@@ -177,7 +177,7 @@ export function ConnectDatabaseModal({ isOpen, onClose, onComplete }: ConnectDat
           )}
 
           <div className="space-y-1.5">
-            <Label className="text-sm font-semibold text-slate-500">Target Database</Label>
+            <Label className="text-sm font-semibold text-slate-500">Select Database</Label>
             <Select 
               value={formData.database} 
               onValueChange={(val) => handleInputChange("database", val)}

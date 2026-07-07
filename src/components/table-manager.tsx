@@ -9,13 +9,10 @@ import {
   Zap,
   Archive,
   Database,
-  Server as ServerIcon,
   ArrowLeft,
   Search as SearchIcon,
   Activity,
   Plus,
-  Clock,
-  ShieldAlert,
   History
 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
@@ -51,7 +48,7 @@ import { Label } from "@/components/ui/label"
 import { toast } from "@/hooks/use-toast"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { TableDetailsView } from "./table-details-view"
-import { MaintenanceAction } from "@/app/page"
+import { MaintenanceAction, DatabaseInstance } from "@/app/page"
 
 export type TableData = {
   name: string
@@ -82,15 +79,24 @@ const ALL_MOCK_TABLES: TableData[] = [
   { name: "USER_PROVIDERS", schema: "auth", status: "Critical", statusVariant: "critical", rowCount: "9,098,052", size: "8.2 GB", fragmentation: 48, lastRead: "2m ago", deadlocks: 12, slowQueries: 8, lastArchivedOn: "2024-02-28", archivedTill: "2024-01-01", usageContext: "Last two scans - this table was accessed 180 times" },
 ]
 
+const MAINT_TYPES: { id: MaintenanceAction; label: string; icon: any; color: string; bg: string; border: string }[] = [
+  { id: 'Archiving', label: 'Archiving', icon: Archive, color: 'text-emerald-500', bg: 'bg-emerald-50', border: 'border-emerald-100' },
+  { id: 'Index Rebuild', label: 'Index Rebuild', icon: Zap, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100' },
+  { id: 'Update Stats', label: 'Update Stats', icon: RefreshCw, color: 'text-amber-500', bg: 'bg-amber-50', border: 'border-amber-100' },
+  { id: 'Scanning', label: 'Scanning', icon: SearchIcon, color: 'text-purple-500', bg: 'bg-purple-50', border: 'border-purple-100' },
+]
+
 export function TableManager({ 
   activeDb, 
   serverName, 
   monitoredTables,
+  databases,
   onCreateTask 
 }: { 
   activeDb: string, 
   serverName: string,
   monitoredTables: string[],
+  databases: DatabaseInstance[],
   onCreateTask: (task: any) => void 
 }) {
   const [search, setSearch] = React.useState("")
@@ -100,7 +106,8 @@ export function TableManager({
   const [selectedTableForDetails, setSelectedTableForDetails] = React.useState<TableData | null>(null)
   const [isTaskModalOpen, setIsTaskModalOpen] = React.useState(false)
   const [taskName, setTaskName] = React.useState("")
-  const [selectedActions, setSelectedActions] = React.useState<MaintenanceAction[]>([])
+  const [selectedAction, setSelectedAction] = React.useState<MaintenanceAction>('Archiving')
+  const [targetDatabase, setTargetDatabase] = React.useState("")
 
   const activeTables = React.useMemo(() => {
     return ALL_MOCK_TABLES.filter(t => monitoredTables.includes(t.name))
@@ -154,37 +161,31 @@ export function TableManager({
     setSelectedTables(prev => prev.includes(name) ? prev.filter(n => n !== name) : [...prev, name])
   }
 
-  const toggleAction = (action: MaintenanceAction) => {
-    setSelectedActions(prev => 
-      prev.includes(action) ? prev.filter(a => a !== action) : [...prev, action]
-    )
-  }
-
   const openTaskCreation = () => {
     setTaskName(`Task - ${new Date().toLocaleDateString()}`)
-    setSelectedActions([])
+    setSelectedAction('Archiving')
+    setTargetDatabase("")
     setIsTaskModalOpen(true)
   }
 
   const handleFinalizeTask = () => {
-    if (selectedActions.length === 0) {
+    const isArchiving = selectedAction === 'Archiving'
+    if (isArchiving && !targetDatabase) {
       toast({
         variant: "destructive",
-        title: "Action Required",
-        description: "Please select at least one task type.",
+        title: "Target Database Required",
+        description: "Please specify target database for archival operations.",
       })
       return
     }
-
-    const type = selectedActions.length > 1 ? 'Multi-Task' : selectedActions[0]
     
     onCreateTask({
       name: taskName,
-      type: type,
-      actions: [...selectedActions],
+      type: selectedAction,
       server: serverName,
       database: activeDb,
-      tables: [...selectedTables]
+      tables: [...selectedTables],
+      targetDatabase: isArchiving ? targetDatabase : undefined
     })
     setIsTaskModalOpen(false)
     setSelectedTables([])
@@ -193,6 +194,10 @@ export function TableManager({
       description: `Task "${taskName}" has been added to the Task Manager.`,
     })
   }
+
+  const availableTargets = React.useMemo(() => {
+    return databases.filter(db => db.name !== activeDb)
+  }, [databases, activeDb])
 
   if (viewMode === 'details' && selectedTableForDetails) {
     return (
@@ -375,13 +380,13 @@ export function TableManager({
       </div>
 
       <Dialog open={isTaskModalOpen} onOpenChange={setIsTaskModalOpen}>
-        <DialogContent className="sm:max-w-[550px] rounded-[2rem]">
+        <DialogContent className="sm:max-w-[650px] rounded-[2rem]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-xl font-bold">
               <RefreshCw className="h-6 w-6 text-primary" />
               Configure Maintenance Task
             </DialogTitle>
-            <DialogDescription className="text-sm font-medium">Define actions for your selected monitored tables.</DialogDescription>
+            <DialogDescription className="text-sm font-medium">Define a single maintenance action for your selected tables.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-6 py-4">
             <div className="space-y-2">
@@ -389,37 +394,44 @@ export function TableManager({
               <Input id="task-name" value={taskName} onChange={(e) => setTaskName(e.target.value)} placeholder="e.g., Weekly Audit Scan" className="h-11 border-slate-200 rounded-xl" />
             </div>
 
-            <div className="space-y-4">
-              <Label className="text-sm font-bold text-slate-700">Select Maintenance Types</Label>
-              <div className="flex flex-wrap gap-2">
-                {[
-                  { id: 'Archiving' as MaintenanceAction, icon: Archive, color: 'text-amber-500', bg: 'bg-amber-50', border: 'border-amber-100' },
-                  { id: 'Index Rebuild' as MaintenanceAction, icon: Zap, color: 'text-blue-500', bg: 'bg-blue-50', border: 'border-blue-100' },
-                  { id: 'Update Stats' as MaintenanceAction, icon: RefreshCw, color: 'text-emerald-500', bg: 'bg-emerald-50', border: 'border-emerald-100' },
-                  { id: 'Scanning' as MaintenanceAction, icon: ShieldAlert, color: 'text-purple-500', bg: 'bg-purple-50', border: 'border-purple-100' },
-                ].map((action) => (
-                  <Button
-                    key={action.id}
-                    variant="outline"
-                    onClick={() => toggleAction(action.id)}
-                    className={cn(
-                      "h-10 px-4 rounded-xl border font-bold text-xs gap-2 transition-all",
-                      selectedActions.includes(action.id) 
-                        ? `${action.bg} ${action.color} border-primary/30 ring-2 ring-primary/10` 
-                        : "bg-white text-slate-500 border-slate-200"
-                    )}
-                  >
-                    <action.icon className={cn("h-3.5 w-3.5", selectedActions.includes(action.id) ? action.color : "text-slate-400")} />
-                    {action.id}
-                  </Button>
-                ))}
-              </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-bold text-slate-700">Maintenance Type</Label>
+              <Select value={selectedAction} onValueChange={(v: MaintenanceAction) => setSelectedAction(v)}>
+                <SelectTrigger className="h-11 border-slate-200 rounded-xl bg-white">
+                  <SelectValue placeholder="Select Action" />
+                </SelectTrigger>
+                <SelectContent>
+                  {MAINT_TYPES.map((action) => (
+                    <SelectItem key={action.id} value={action.id}>
+                      {action.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
+
+            {selectedAction === 'Archiving' && (
+              <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
+                <div className="space-y-2">
+                  <Label className="text-sm font-bold text-slate-700">Target Database</Label>
+                  <Select value={targetDatabase} onValueChange={setTargetDatabase}>
+                    <SelectTrigger className="h-11 border-slate-200 rounded-xl bg-white">
+                      <SelectValue placeholder="Select Target DB" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableTargets.map(db => (
+                        <SelectItem key={db.name} value={db.name}>{db.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
 
             <div className="space-y-3">
               <Label className="text-sm font-bold text-slate-700">Affected Tables Preview ({selectedTables.length})</Label>
               <div className="border rounded-2xl bg-slate-50/50 p-1 border-slate-100 overflow-hidden">
-                <ScrollArea className="h-[140px]">
+                <ScrollArea className="h-[120px]">
                   <div className="p-3 grid grid-cols-2 gap-2">
                     {selectedTables.map(t => (
                       <div key={t} className="flex items-center gap-2 p-2 bg-white rounded-xl border border-slate-100 shadow-sm">
@@ -434,7 +446,7 @@ export function TableManager({
           </div>
           <DialogFooter className="bg-slate-50/50 p-6 -mx-6 -mb-6 border-t rounded-b-[2rem]">
             <Button variant="outline" onClick={() => setIsTaskModalOpen(false)} className="rounded-xl font-bold h-11 px-8">Cancel</Button>
-            <Button onClick={handleFinalizeTask} disabled={!taskName || selectedActions.length === 0} className="bg-primary hover:bg-primary/90 text-white font-bold h-11 px-10 rounded-xl shadow-lg shadow-primary/10">
+            <Button onClick={handleFinalizeTask} disabled={!taskName || !selectedAction || (selectedAction === 'Archiving' && !targetDatabase)} className="bg-primary hover:bg-primary/90 text-white font-bold h-11 px-10 rounded-xl shadow-lg shadow-primary/10">
               Create Task
             </Button>
           </DialogFooter>
