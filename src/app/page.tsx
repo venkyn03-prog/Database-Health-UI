@@ -115,7 +115,7 @@ const DEFAULT_TASKS: MaintenanceTask[] = [
     tables: ["WEB_FILE_UPLOAD_2009", "WEB_FILE_BYTES_2009"],
     createdAt: "2024-03-10T14:30:00Z",
     status: 'pending',
-    targetDatabase: "MPM_HISTORICAL_STAGING"
+    targetDatabase: "ReportingDB"
   },
   {
     id: "task-2",
@@ -282,6 +282,7 @@ export default function SQLSentinelApp() {
             activeDb={activeDbName} 
             serverName={serverName} 
             monitoredTables={activeDb?.monitoredTables || []}
+            databases={databases}
             onCreateTask={handleCreateTask} 
           />
         )
@@ -297,6 +298,7 @@ export default function SQLSentinelApp() {
           <RedundancyScanner 
             activeDb={activeDbName} 
             serverName={serverName}
+            databases={databases}
             onCreateTask={handleCreateTask} 
           />
         )

@@ -44,7 +44,7 @@ import { Label } from "@/components/ui/label"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
 import { toast } from "@/hooks/use-toast"
-import { MaintenanceAction } from "@/app/page"
+import { MaintenanceAction, DatabaseInstance } from "@/app/page"
 import {
   Select,
   SelectContent,
@@ -85,10 +85,12 @@ const DEFAULT_REDUNDANCIES: RedundantItem[] = [
 export function RedundancyScanner({ 
   activeDb = "WebPortalDB", 
   serverName = "SQLSRV-PROD-01",
+  databases,
   onCreateTask 
 }: { 
   activeDb?: string, 
   serverName?: string,
+  databases: DatabaseInstance[],
   onCreateTask: (task: any) => void 
 }) {
   const [isScanning, setIsScanning] = React.useState(false)
@@ -142,8 +144,8 @@ export function RedundancyScanner({
   }
 
   const handleFinalizeTask = () => {
-    const isArchival = selectedAction === 'Archiving'
-    if (isArchival && (!targetDatabase || !targetTable)) {
+    const isArchiving = selectedAction === 'Archiving'
+    if (isArchiving && (!targetDatabase || !targetTable)) {
       toast({
         variant: "destructive",
         title: "Archival Targets Required",
@@ -158,8 +160,8 @@ export function RedundancyScanner({
       server: serverName,
       database: activeDb,
       tables: [...selectedItems],
-      targetDatabase: isArchival ? targetDatabase : undefined,
-      targetTable: isArchival ? targetTable : undefined
+      targetDatabase: isArchiving ? targetDatabase : undefined,
+      targetTable: isArchiving ? targetTable : undefined
     })
     
     setIsTaskModalOpen(false)
@@ -169,6 +171,10 @@ export function RedundancyScanner({
       description: `Task for ${selectedItems.length} objects added to the Task Manager.`,
     })
   }
+
+  const availableTargets = React.useMemo(() => {
+    return databases.filter(db => db.name !== activeDb)
+  }, [databases, activeDb])
 
   const totalSize = scanResults.reduce((acc, curr) => {
     const val = parseFloat(curr.size)
@@ -266,10 +272,10 @@ export function RedundancyScanner({
                     Archive
                   </Button>
                   <Button 
-                    onClick={() => openTaskCreation("Multi-Task")} 
-                    className="h-10 px-6 rounded-full bg-white hover:bg-rose-50 text-rose-600 border border-rose-100 font-bold shadow-sm gap-2"
+                    onClick={() => openTaskCreation("Update Stats")} 
+                    className="h-10 px-6 rounded-full bg-white hover:bg-blue-50 text-blue-600 border border-blue-100 font-bold shadow-sm gap-2"
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <RefreshCw className="h-4 w-4" />
                     Drop Object
                   </Button>
                 </div>
@@ -390,9 +396,10 @@ export function RedundancyScanner({
                   <SelectValue placeholder="Select Action" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Scanning">Redundancy Check</SelectItem>
-                  <SelectItem value="Archiving">Archive Historical Data</SelectItem>
-                  <SelectItem value="Multi-Task">Cleanup Object</SelectItem>
+                  <SelectItem value="Scanning">Scanning</SelectItem>
+                  <SelectItem value="Archiving">Archiving</SelectItem>
+                  <SelectItem value="Index Rebuild">Index Rebuild</SelectItem>
+                  <SelectItem value="Update Stats">Update Stats</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -406,8 +413,9 @@ export function RedundancyScanner({
                       <SelectValue placeholder="Select Target DB" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="ArchiveDB_PROD">ArchiveDB_PROD</SelectItem>
-                      <SelectItem value="MPM_HISTORICAL_STAGING">MPM_HISTORICAL_STAGING</SelectItem>
+                      {availableTargets.map(db => (
+                        <SelectItem key={db.name} value={db.name}>{db.name}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>

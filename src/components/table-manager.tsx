@@ -51,7 +51,7 @@ import { Label } from "@/components/ui/label"
 import { toast } from "@/hooks/use-toast"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { TableDetailsView } from "./table-details-view"
-import { MaintenanceAction } from "@/app/page"
+import { MaintenanceAction, DatabaseInstance } from "@/app/page"
 
 export type TableData = {
   name: string
@@ -87,18 +87,19 @@ const JOB_TYPES: { id: MaintenanceAction; label: string; icon: any; color: strin
   { id: 'Index Rebuild', label: 'Index Rebuild', icon: Zap, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100' },
   { id: 'Update Stats', label: 'Update Stats', icon: RefreshCw, color: 'text-amber-500', bg: 'bg-amber-50', border: 'border-amber-100' },
   { id: 'Scanning', label: 'Scanning', icon: SearchIcon, color: 'text-purple-500', bg: 'bg-purple-50', border: 'border-purple-100' },
-  { id: 'Multi-Task', label: 'Multi-Task', icon: ShieldAlert, color: 'text-slate-500', bg: 'bg-slate-50', border: 'border-slate-100' },
 ]
 
 export function TableManager({ 
   activeDb, 
   serverName, 
   monitoredTables,
+  databases,
   onCreateTask 
 }: { 
   activeDb: string, 
   serverName: string,
   monitoredTables: string[],
+  databases: DatabaseInstance[],
   onCreateTask: (task: any) => void 
 }) {
   const [search, setSearch] = React.useState("")
@@ -199,6 +200,10 @@ export function TableManager({
       description: `Task "${taskName}" has been added to the Task Manager.`,
     })
   }
+
+  const availableTargets = React.useMemo(() => {
+    return databases.filter(db => db.name !== activeDb)
+  }, [databases, activeDb])
 
   if (viewMode === 'details' && selectedTableForDetails) {
     return (
@@ -420,8 +425,9 @@ export function TableManager({
                       <SelectValue placeholder="Select Target DB" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="ArchiveDB_PROD">ArchiveDB_PROD</SelectItem>
-                      <SelectItem value="MPM_HISTORICAL_STAGING">MPM_HISTORICAL_STAGING</SelectItem>
+                      {availableTargets.map(db => (
+                        <SelectItem key={db.name} value={db.name}>{db.name}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
