@@ -108,7 +108,6 @@ export function TableManager({
   const [taskName, setTaskName] = React.useState("")
   const [selectedAction, setSelectedAction] = React.useState<MaintenanceAction>('Archiving')
   const [targetDatabase, setTargetDatabase] = React.useState("")
-  const [tableMappings, setTableMappings] = React.useState<Record<string, string>>({})
 
   const activeTables = React.useMemo(() => {
     return ALL_MOCK_TABLES.filter(t => monitoredTables.includes(t.name))
@@ -166,7 +165,6 @@ export function TableManager({
     setTaskName(`Task - ${new Date().toLocaleDateString()}`)
     setSelectedAction('Archiving')
     setTargetDatabase("")
-    setTableMappings(selectedTables.reduce((acc, table) => ({ ...acc, [table]: "MPM_ARCHIVE_MAIN" }), {}))
     setIsTaskModalOpen(true)
   }
 
@@ -187,8 +185,7 @@ export function TableManager({
       server: serverName,
       database: activeDb,
       tables: [...selectedTables],
-      targetDatabase: isArchiving ? targetDatabase : undefined,
-      tableMappings: isArchiving ? tableMappings : undefined
+      targetDatabase: isArchiving ? targetDatabase : undefined
     })
     setIsTaskModalOpen(false)
     setSelectedTables([])
@@ -198,18 +195,9 @@ export function TableManager({
     })
   }
 
-  const handleMappingChange = (source: string, target: string) => {
-    setTableMappings(prev => ({ ...prev, [source]: target }))
-  }
-
   const availableTargets = React.useMemo(() => {
     return databases.filter(db => db.name !== activeDb)
   }, [databases, activeDb])
-
-  const availableTargetTables = React.useMemo(() => {
-    if (!targetDatabase) return []
-    return ["MPM_ARCHIVE_MAIN", "HIST_AUDIT_LOGS", "LEGACY_STORAGE_TABLE", "COMPLIANCE_VAULT"]
-  }, [targetDatabase])
 
   if (viewMode === 'details' && selectedTableForDetails) {
     return (
@@ -423,7 +411,7 @@ export function TableManager({
             </div>
 
             {selectedAction === 'Archiving' && (
-              <div className="space-y-6 animate-in fade-in slide-in-from-top-2">
+              <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
                 <div className="space-y-2">
                   <Label className="text-sm font-bold text-slate-700">Target Database</Label>
                   <Select value={targetDatabase} onValueChange={setTargetDatabase}>
@@ -436,45 +424,6 @@ export function TableManager({
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
-
-                <div className="space-y-4">
-                  <Label className="text-sm font-bold text-slate-700 flex items-center justify-between">
-                    <span>Archival Table Mapping</span>
-                    <span className="text-[10px] text-slate-400 uppercase tracking-widest">Source → Target</span>
-                  </Label>
-                  <div className="border rounded-2xl bg-slate-50/50 p-4 border-slate-100">
-                    <ScrollArea className="h-[200px] pr-4">
-                      <div className="space-y-3">
-                        {selectedTables.map(t => (
-                          <div key={t} className="flex items-center gap-4 bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <TableIcon className="h-3.5 w-3.5 text-slate-400" />
-                                <span className="text-xs font-bold text-slate-700 truncate">{t}</span>
-                              </div>
-                            </div>
-                            <div className="w-[200px]">
-                              <Select 
-                                value={tableMappings[t] || ""} 
-                                onValueChange={(v) => handleMappingChange(t, v)}
-                                disabled={!targetDatabase}
-                              >
-                                <SelectTrigger className="h-9 text-xs border-slate-200 rounded-lg">
-                                  <SelectValue placeholder="Select Target" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {availableTargetTables.map(targetT => (
-                                    <SelectItem key={targetT} value={targetT}>{targetT}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </ScrollArea>
-                  </div>
                 </div>
               </div>
             )}
