@@ -9,13 +9,10 @@ import {
   Zap,
   Archive,
   Database,
-  Server as ServerIcon,
   ArrowLeft,
   Search as SearchIcon,
   Activity,
   Plus,
-  Clock,
-  ShieldAlert,
   History
 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
@@ -111,7 +108,7 @@ export function TableManager({
   const [taskName, setTaskName] = React.useState("")
   const [selectedAction, setSelectedAction] = React.useState<MaintenanceAction>('Archiving')
   const [targetDatabase, setTargetDatabase] = React.useState("")
-  const [targetTable, setTargetTable] = React.useState("")
+  const [tableMappings, setTableMappings] = React.useState<Record<string, string>>({})
 
   const activeTables = React.useMemo(() => {
     return ALL_MOCK_TABLES.filter(t => monitoredTables.includes(t.name))
@@ -169,17 +166,17 @@ export function TableManager({
     setTaskName(`Task - ${new Date().toLocaleDateString()}`)
     setSelectedAction('Archiving')
     setTargetDatabase("")
-    setTargetTable("")
+    setTableMappings(selectedTables.reduce((acc, table) => ({ ...acc, [table]: "MPM_ARCHIVE_MAIN" }), {}))
     setIsTaskModalOpen(true)
   }
 
   const handleFinalizeTask = () => {
     const isArchiving = selectedAction === 'Archiving'
-    if (isArchiving && (!targetDatabase || !targetTable)) {
+    if (isArchiving && !targetDatabase) {
       toast({
         variant: "destructive",
-        title: "Archival Targets Required",
-        description: "Please specify target database and table for archival operations.",
+        title: "Target Database Required",
+        description: "Please specify target database for archival operations.",
       })
       return
     }
@@ -191,7 +188,7 @@ export function TableManager({
       database: activeDb,
       tables: [...selectedTables],
       targetDatabase: isArchiving ? targetDatabase : undefined,
-      targetTable: isArchiving ? targetTable : undefined
+      tableMappings: isArchiving ? tableMappings : undefined
     })
     setIsTaskModalOpen(false)
     setSelectedTables([])
@@ -201,9 +198,19 @@ export function TableManager({
     })
   }
 
+  const handleMappingChange = (source: string, target: string) => {
+    setTableMappings(prev => ({ ...prev, [source]: target }))
+  }
+
   const availableTargets = React.useMemo(() => {
     return databases.filter(db => db.name !== activeDb)
   }, [databases, activeDb])
+
+  // Mock loading target tables based on DB selection
+  const availableTargetTables = React.useMemo(() => {
+    if (!targetDatabase) return []
+    return ["MPM_ARCHIVE_MAIN", "HIST_AUDIT_LOGS", "LEGACY_STORAGE_TABLE", "COMPLIANCE_VAULT"]
+  }, [targetDatabase])
 
   if (viewMode === 'details' && selectedTableForDetails) {
     return (
@@ -386,7 +393,7 @@ export function TableManager({
       </div>
 
       <Dialog open={isTaskModalOpen} onOpenChange={setIsTaskModalOpen}>
-        <DialogContent className="sm:max-w-[550px] rounded-[2rem]">
+        <DialogContent className="sm:max-w-[650px] rounded-[2rem]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-xl font-bold">
               <RefreshCw className="h-6 w-6 text-primary" />
@@ -417,7 +424,7 @@ export function TableManager({
             </div>
 
             {selectedAction === 'Archiving' && (
-              <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2">
+              <div className="space-y-6 animate-in fade-in slide-in-from-top-2">
                 <div className="space-y-2">
                   <Label className="text-sm font-bold text-slate-700">Target Database</Label>
                   <Select value={targetDatabase} onValueChange={setTargetDatabase}>
@@ -431,36 +438,65 @@ export function TableManager({
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2">
-                  <Label className="text-sm font-bold text-slate-700">Target Table</Label>
-                  <Select value={targetTable} onValueChange={setTargetTable}>
-                    <SelectTrigger className="h-11 border-slate-200 rounded-xl bg-white">
-                      <SelectValue placeholder="Select Target Table" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="MPM_ARCHIVE_MAIN">MPM_ARCHIVE_MAIN</SelectItem>
-                      <SelectItem value="HIST_AUDIT_LOGS">HIST_AUDIT_LOGS</SelectItem>
-                    </SelectContent>
-                  </Select>
+
+                <div className="space-y-4">
+                  <Label className="text-sm font-bold text-slate-700 flex items-center justify-between">
+                    <span>Archival Table Mapping</span>
+                    <span className="text-[10px] text-slate-400 uppercase tracking-widest">Source → Target</span>
+                  </Label>
+                  <div className="border rounded-2xl bg-slate-50/50 p-4 border-slate-100">
+                    <ScrollArea className="h-[200px] pr-4">
+                      <div className="space-y-3">
+                        {selectedTables.map(t => (
+                          <div key={t} className="flex items-center gap-4 bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <TableIcon className="h-3.5 w-3.5 text-slate-400" />
+                                <span className="text-xs font-bold text-slate-700 truncate">{t}</span>
+                              </div>
+                            </div>
+                            <div className="w-[200px]">
+                              <Select 
+                                value={tableMappings[t] || ""} 
+                                onValueChange={(v) => handleMappingChange(t, v)}
+                                disabled={!targetDatabase}
+                              >
+                                <SelectTrigger className="h-9 text-xs border-slate-200 rounded-lg">
+                                  <SelectValue placeholder="Select Target" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {availableTargetTables.map(targetT => (
+                                    <SelectItem key={targetT} value={targetT}>{targetT}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  </div>
                 </div>
               </div>
             )}
 
-            <div className="space-y-3">
-              <Label className="text-sm font-bold text-slate-700">Affected Tables Preview ({selectedTables.length})</Label>
-              <div className="border rounded-2xl bg-slate-50/50 p-1 border-slate-100 overflow-hidden">
-                <ScrollArea className="h-[120px]">
-                  <div className="p-3 grid grid-cols-2 gap-2">
-                    {selectedTables.map(t => (
-                      <div key={t} className="flex items-center gap-2 p-2 bg-white rounded-xl border border-slate-100 shadow-sm">
-                        <TableIcon className="h-3.5 w-3.5 text-slate-400" />
-                        <span className="text-[11px] font-bold text-slate-700 truncate">{t}</span>
-                      </div>
-                    ))}
-                  </div>
-                </ScrollArea>
+            {selectedAction !== 'Archiving' && (
+              <div className="space-y-3">
+                <Label className="text-sm font-bold text-slate-700">Affected Tables Preview ({selectedTables.length})</Label>
+                <div className="border rounded-2xl bg-slate-50/50 p-1 border-slate-100 overflow-hidden">
+                  <ScrollArea className="h-[120px]">
+                    <div className="p-3 grid grid-cols-2 gap-2">
+                      {selectedTables.map(t => (
+                        <div key={t} className="flex items-center gap-2 p-2 bg-white rounded-xl border border-slate-100 shadow-sm">
+                          <TableIcon className="h-3.5 w-3.5 text-slate-400" />
+                          <span className="text-[11px] font-bold text-slate-700 truncate">{t}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </div>
               </div>
-            </div>
+            )}
           </div>
           <DialogFooter className="bg-slate-50/50 p-6 -mx-6 -mb-6 border-t rounded-b-[2rem]">
             <Button variant="outline" onClick={() => setIsTaskModalOpen(false)} className="rounded-xl font-bold h-11 px-8">Cancel</Button>

@@ -35,7 +35,6 @@ export type MaintenanceAction =
   | 'Index Rebuild'
   | 'Update Stats'
   | 'Scanning'
-  | 'Multi-Task'
 
 export type MaintenanceTask = {
   id: string
@@ -48,7 +47,7 @@ export type MaintenanceTask = {
   status?: 'pending' | 'scheduled'
   schedule?: ScheduleConfig
   targetDatabase?: string
-  targetTable?: string
+  tableMappings?: Record<string, string> // Source table -> Target table mapping
 }
 
 export type DatabaseInstance = {
@@ -115,7 +114,11 @@ const DEFAULT_TASKS: MaintenanceTask[] = [
     tables: ["WEB_FILE_UPLOAD_2009", "WEB_FILE_BYTES_2009"],
     createdAt: "2024-03-10T14:30:00Z",
     status: 'pending',
-    targetDatabase: "ReportingDB"
+    targetDatabase: "ReportingDB",
+    tableMappings: {
+      "WEB_FILE_UPLOAD_2009": "MPM_ARCHIVE_MAIN",
+      "WEB_FILE_BYTES_2009": "HIST_AUDIT_LOGS"
+    }
   },
   {
     id: "task-2",
@@ -223,8 +226,7 @@ export default function SQLSentinelApp() {
     
     let targetTab = task.type === 'Archiving' ? 'Archiving' :
                     task.type === 'Index Rebuild' ? 'Index Rebuild' :
-                    task.type === 'Update Stats' ? 'Update Stats' :
-                    task.type === 'Scanning' ? 'Scanning' : 'Multi-Task'
+                    task.type === 'Update Stats' ? 'Update Stats' : 'Scanning'
     
     setActiveTaskTab(targetTab)
     setCurrentView("archive")
@@ -324,61 +326,70 @@ export default function SQLSentinelApp() {
   if (!isMounted) return null
 
   return (
-    <SidebarProvider>
-      <AppSidebar 
-        currentView={currentView} 
-        onViewChange={setCurrentView}
-        activeDb={activeDbName}
-        onDbChange={setActiveDbName}
-        databases={databases.map(db => db.name)}
-      />
-      <SidebarInset className="bg-background flex flex-col">
-        <header className="flex h-16 shrink-0 items-center justify-between px-6 bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
-          <div className="flex items-center gap-4">
-            <SidebarTrigger className="text-slate-400 hover:text-slate-600 h-8 w-8" />
-            <Separator orientation="vertical" className="h-4" />
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-slate-700">Instance:</span>
-              <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">PROD-SQL-01</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-4 flex-1 justify-end max-w-4xl">
-            <div className="relative w-full max-w-md">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-              <Input
-                type="search"
-                placeholder="Search logs, queries, tables..."
-                className="pl-10 bg-[#F8F9FA] border-slate-200 h-10 text-xs rounded-full focus-visible:ring-1 shadow-none w-full"
-              />
-            </div>
-            <div className="flex items-center gap-3">
-              <Button 
-                variant="outline" 
-                size="icon" 
-                className="relative h-10 w-10 rounded-full border-2 border-[#E6F4EA] bg-white hover:bg-[#F1F9F3] transition-all group"
-              >
-                <Bell className="h-4 w-4 text-slate-400 group-hover:text-emerald-600" />
-                <span className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full border-2 border-white" />
-              </Button>
-              <Avatar className="h-10 w-10 rounded-full border-2 border-slate-100 shadow-sm">
-                <AvatarImage src="https://picsum.photos/seed/user-main/40/40" />
-                <AvatarFallback className="text-[10px] font-bold bg-emerald-50 text-emerald-700">AD</AvatarFallback>
-              </Avatar>
-            </div>
-          </div>
-        </header>
+    <html lang="en">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+      </head>
+      <body className="font-body antialiased">
+        <SidebarProvider>
+          <AppSidebar 
+            currentView={currentView} 
+            onViewChange={setCurrentView}
+            activeDb={activeDbName}
+            onDbChange={setActiveDbName}
+            databases={databases.map(db => db.name)}
+          />
+          <SidebarInset className="bg-background flex flex-col">
+            <header className="flex h-16 shrink-0 items-center justify-between px-6 bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
+              <div className="flex items-center gap-4">
+                <SidebarTrigger className="text-slate-400 hover:text-slate-600 h-8 w-8" />
+                <Separator orientation="vertical" className="h-4" />
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-slate-700">Instance:</span>
+                  <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">PROD-SQL-01</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-4 flex-1 justify-end max-w-4xl">
+                <div className="relative w-full max-w-md">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                  <Input
+                    type="search"
+                    placeholder="Search logs, queries, tables..."
+                    className="pl-10 bg-[#F8F9FA] border-slate-200 h-10 text-xs rounded-full focus-visible:ring-1 shadow-none w-full"
+                  />
+                </div>
+                <div className="flex items-center gap-3">
+                  <Button 
+                    variant="outline" 
+                    size="icon" 
+                    className="relative h-10 w-10 rounded-full border-2 border-[#E6F4EA] bg-white hover:bg-[#F1F9F3] transition-all group"
+                  >
+                    <Bell className="h-4 w-4 text-slate-400 group-hover:text-emerald-600" />
+                    <span className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full border-2 border-white" />
+                  </Button>
+                  <Avatar className="h-10 w-10 rounded-full border-2 border-slate-100 shadow-sm">
+                    <AvatarImage src="https://picsum.photos/seed/user-main/40/40" />
+                    <AvatarFallback className="text-[10px] font-bold bg-emerald-50 text-emerald-700">AD</AvatarFallback>
+                  </Avatar>
+                </div>
+              </div>
+            </header>
 
-        <main className="flex-1 px-8 py-8 overflow-auto bg-background">
-          <div className="max-w-7xl mx-auto">
-            {renderContent()}
-          </div>
-        </main>
-        
-        <footer className="py-6 px-8 text-center text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] bg-background">
-          &copy; 2026 MPM Database Health • developed by keysoftware Team
-        </footer>
-      </SidebarInset>
-      <Toaster />
-    </SidebarProvider>
+            <main className="flex-1 px-8 py-8 overflow-auto bg-background">
+              <div className="max-w-7xl mx-auto">
+                {renderContent()}
+              </div>
+            </main>
+            
+            <footer className="py-6 px-8 text-center text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] bg-background">
+              &copy; 2026 MPM Database Health • developed by keysoftware Team
+            </footer>
+          </SidebarInset>
+          <Toaster />
+        </SidebarProvider>
+      </body>
+    </html>
   )
 }
