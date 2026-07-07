@@ -79,7 +79,7 @@ const ALL_MOCK_TABLES: TableData[] = [
   { name: "USER_PROVIDERS", schema: "auth", status: "Critical", statusVariant: "critical", rowCount: "9,098,052", size: "8.2 GB", fragmentation: 48, lastRead: "2m ago", deadlocks: 12, slowQueries: 8, lastArchivedOn: "2024-02-28", archivedTill: "2024-01-01", usageContext: "Last two scans - this table was accessed 180 times" },
 ]
 
-const JOB_TYPES: { id: MaintenanceAction; label: string; icon: any; color: string; bg: string; border: string }[] = [
+const MAINT_TYPES: { id: MaintenanceAction; label: string; icon: any; color: string; bg: string; border: string }[] = [
   { id: 'Archiving', label: 'Archiving', icon: Archive, color: 'text-emerald-500', bg: 'bg-emerald-50', border: 'border-emerald-100' },
   { id: 'Index Rebuild', label: 'Index Rebuild', icon: Zap, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100' },
   { id: 'Update Stats', label: 'Update Stats', icon: RefreshCw, color: 'text-amber-500', bg: 'bg-amber-50', border: 'border-amber-100' },
@@ -401,7 +401,7 @@ export function TableManager({
                   <SelectValue placeholder="Select Action" />
                 </SelectTrigger>
                 <SelectContent>
-                  {JOB_TYPES.map((action) => (
+                  {MAINT_TYPES.map((action) => (
                     <SelectItem key={action.id} value={action.id}>
                       {action.label}
                     </SelectItem>
@@ -428,27 +428,25 @@ export function TableManager({
               </div>
             )}
 
-            {selectedAction !== 'Archiving' && (
-              <div className="space-y-3">
-                <Label className="text-sm font-bold text-slate-700">Affected Tables Preview ({selectedTables.length})</Label>
-                <div className="border rounded-2xl bg-slate-50/50 p-1 border-slate-100 overflow-hidden">
-                  <ScrollArea className="h-[120px]">
-                    <div className="p-3 grid grid-cols-2 gap-2">
-                      {selectedTables.map(t => (
-                        <div key={t} className="flex items-center gap-2 p-2 bg-white rounded-xl border border-slate-100 shadow-sm">
-                          <TableIcon className="h-3.5 w-3.5 text-slate-400" />
-                          <span className="text-[11px] font-bold text-slate-700 truncate">{t}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </ScrollArea>
-                </div>
+            <div className="space-y-3">
+              <Label className="text-sm font-bold text-slate-700">Affected Tables Preview ({selectedTables.length})</Label>
+              <div className="border rounded-2xl bg-slate-50/50 p-1 border-slate-100 overflow-hidden">
+                <ScrollArea className="h-[120px]">
+                  <div className="p-3 grid grid-cols-2 gap-2">
+                    {selectedTables.map(t => (
+                      <div key={t} className="flex items-center gap-2 p-2 bg-white rounded-xl border border-slate-100 shadow-sm">
+                        <TableIcon className="h-3.5 w-3.5 text-slate-400" />
+                        <span className="text-[11px] font-bold text-slate-700 truncate">{t}</span>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
               </div>
-            )}
+            </div>
           </div>
           <DialogFooter className="bg-slate-50/50 p-6 -mx-6 -mb-6 border-t rounded-b-[2rem]">
             <Button variant="outline" onClick={() => setIsTaskModalOpen(false)} className="rounded-xl font-bold h-11 px-8">Cancel</Button>
-            <Button onClick={handleFinalizeTask} disabled={!taskName || !selectedAction} className="bg-primary hover:bg-primary/90 text-white font-bold h-11 px-10 rounded-xl shadow-lg shadow-primary/10">
+            <Button onClick={handleFinalizeTask} disabled={!taskName || !selectedAction || (selectedAction === 'Archiving' && !targetDatabase)} className="bg-primary hover:bg-primary/90 text-white font-bold h-11 px-10 rounded-xl shadow-lg shadow-primary/10">
               Create Task
             </Button>
           </DialogFooter>

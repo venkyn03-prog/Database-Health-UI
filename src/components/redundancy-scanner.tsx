@@ -128,7 +128,7 @@ export function RedundancyScanner({
 
   const openTaskCreation = (initialAction: MaintenanceAction) => {
     setSelectedAction(initialAction)
-    setTaskName(`${initialAction.replace('_', ' ')} Task - ${new Date().toLocaleDateString()}`)
+    setTaskName(`${initialAction} Task - ${new Date().toLocaleDateString()}`)
     setTargetDatabase("")
     setIsTaskModalOpen(true)
   }
@@ -410,29 +410,27 @@ export function RedundancyScanner({
               </div>
             )}
 
-            {selectedAction !== 'Archiving' && (
-              <div className="space-y-3">
-                <Label className="text-sm font-bold text-slate-700">Affected Objects ({selectedItems.length})</Label>
-                <div className="border rounded-2xl bg-slate-50/50 p-1 border-slate-100 overflow-hidden">
-                  <ScrollArea className="h-[120px]">
-                    <div className="p-3 grid grid-cols-2 gap-2">
-                      {selectedItems.map(t => (
-                        <div key={t} className="flex items-center gap-2 p-2 bg-white rounded-xl border border-slate-100 shadow-sm">
-                          <Activity className="h-3.5 w-3.5 text-slate-400" />
-                          <span className="text-[11px] font-bold text-slate-700 truncate">{t}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </ScrollArea>
-                </div>
+            <div className="space-y-3">
+              <Label className="text-sm font-bold text-slate-700">Affected Objects ({selectedItems.length})</Label>
+              <div className="border rounded-2xl bg-slate-50/50 p-1 border-slate-100 overflow-hidden">
+                <ScrollArea className="h-[120px]">
+                  <div className="p-3 grid grid-cols-2 gap-2">
+                    {selectedItems.map(t => (
+                      <div key={t} className="flex items-center gap-2 p-2 bg-white rounded-xl border border-slate-100 shadow-sm">
+                        <Activity className="h-3.5 w-3.5 text-slate-400" />
+                        <span className="text-[11px] font-bold text-slate-700 truncate">{t}</span>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
               </div>
-            )}
+            </div>
           </div>
           <DialogFooter className="bg-slate-50/50 p-6 -mx-6 -mb-6 border-t rounded-b-[2rem]">
             <Button variant="outline" onClick={() => setIsTaskModalOpen(false)} className="rounded-xl font-bold h-11 px-8">Cancel</Button>
             <Button 
               onClick={handleFinalizeTask} 
-              disabled={!taskName || !selectedAction} 
+              disabled={!taskName || !selectedAction || (selectedAction === 'Archiving' && !targetDatabase)} 
               className={cn(
                 "font-bold h-11 px-10 rounded-xl shadow-lg text-white",
                 selectedAction === 'Scanning' ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-100" :
