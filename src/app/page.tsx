@@ -30,19 +30,47 @@ export type ScheduleConfig = {
   endDate: string
 }
 
-export type MaintenanceAction = 'Archiving' | 'Index Rebuild' | 'Update Stats' | 'Scanning' | 'Safe' | 'Drop'
+export type MaintenanceAction = 
+  | 'HEALTH_SCAN'
+  | 'DATABASE_STATISTICS'
+  | 'TABLE_STATISTICS'
+  | 'PERFORMANCE_SCAN'
+  | 'CACHE_STATISTICS'
+  | 'FRAGMENTATION_SCAN'
+  | 'DEADLOCK_COLLECTOR'
+  | 'LOCK_WAIT_COLLECTOR'
+  | 'BLOCKING_COLLECTOR'
+  | 'SLOW_QUERY_COLLECTOR'
+  | 'MISSING_INDEX_SCAN'
+  | 'REDUNDANCY_SCAN'
+  | 'ARCHIVE_JOB'
+  | 'ARCHIVE_CLEANUP'
+  | 'INDEX_REORGANIZE'
+  | 'INDEX_REBUILD'
+  | 'STATISTICS_UPDATE'
+  | 'ALERT_PROCESSOR'
+  | 'NOTIFICATION_JOB'
+  | 'REPORT_GENERATION'
+  | 'HISTORY_CLEANUP'
+  | 'FULL_SCAN'
+  | 'Archiving' // Legacy/Compatibility
+  | 'Index Rebuild' // Legacy/Compatibility
+  | 'Update Stats' // Legacy/Compatibility
+  | 'Scanning' // Legacy/Compatibility
+  | 'Multi-Task' // Legacy/Compatibility
 
 export type MaintenanceTask = {
   id: string
   name: string
-  type: MaintenanceAction | 'Multi-Task'
-  actions?: MaintenanceAction[]
+  type: MaintenanceAction
   server: string
   database: string
   tables: string[]
   createdAt: string
   status?: 'pending' | 'scheduled'
   schedule?: ScheduleConfig
+  targetDatabase?: string
+  targetTable?: string
 }
 
 export type DatabaseInstance = {
@@ -103,17 +131,18 @@ const DEFAULT_TASKS: MaintenanceTask[] = [
   {
     id: "task-1",
     name: "Q4 Data Cleanup",
-    type: "Archiving",
+    type: "ARCHIVE_JOB",
     server: "SQLSRV-PROD-01",
     database: "WebPortalDB",
     tables: ["WEB_FILE_UPLOAD_2009", "WEB_FILE_BYTES_2009"],
     createdAt: "2024-03-10T14:30:00Z",
-    status: 'pending'
+    status: 'pending',
+    targetDatabase: "MPM_HISTORICAL_STAGING"
   },
   {
     id: "task-2",
     name: "Monthly Index Tuning",
-    type: "Index Rebuild",
+    type: "INDEX_REBUILD",
     server: "SQLSRV-PROD-01",
     database: "WebPortalDB",
     tables: ["WEB_AUTH_DETAILS", "WEB_AUTH_NOTES"],
@@ -123,7 +152,7 @@ const DEFAULT_TASKS: MaintenanceTask[] = [
   {
     id: "task-3",
     name: "Daily Stats Refresh",
-    type: "Update Stats",
+    type: "STATISTICS_UPDATE",
     server: "SQLSRV-PROD-01",
     database: "WebPortalDB",
     tables: ["USERS", "USER_PROVIDERS"],
@@ -214,8 +243,11 @@ export default function SQLSentinelApp() {
     }
     setTasks(prev => [newTask, ...prev])
     
-    const primaryTypes = ['Archiving', 'Index Rebuild', 'Update Stats', 'Scanning'];
-    const targetTab = primaryTypes.includes(newTask.type) ? newTask.type : 'Multi-Task';
+    let targetTab = 'Multi-Task'
+    if (newTask.type.includes('ARCHIVE')) targetTab = 'Archiving'
+    else if (newTask.type.includes('INDEX')) targetTab = 'Index Rebuild'
+    else if (newTask.type.includes('STAT')) targetTab = 'Update Stats'
+    else if (newTask.type.includes('SCAN')) targetTab = 'Scanning'
     
     setActiveTaskTab(targetTab)
     setCurrentView("archive")
