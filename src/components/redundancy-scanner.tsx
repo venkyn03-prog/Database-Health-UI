@@ -98,7 +98,7 @@ export function RedundancyScanner({
   const [selectedItems, setSelectedItems] = React.useState<string[]>([])
   const [isTaskModalOpen, setIsTaskModalOpen] = React.useState(false)
   const [taskName, setTaskName] = React.useState("")
-  const [selectedAction, setSelectedAction] = React.useState<MaintenanceAction>('REDUNDANCY_SCAN')
+  const [selectedAction, setSelectedAction] = React.useState<MaintenanceAction>('Scanning')
   const [targetDatabase, setTargetDatabase] = React.useState("")
   const [targetTable, setTargetTable] = React.useState("")
 
@@ -142,7 +142,7 @@ export function RedundancyScanner({
   }
 
   const handleFinalizeTask = () => {
-    const isArchival = selectedAction === 'ARCHIVE_JOB' || selectedAction === 'ARCHIVE_CLEANUP'
+    const isArchival = selectedAction === 'Archiving'
     if (isArchival && (!targetDatabase || !targetTable)) {
       toast({
         variant: "destructive",
@@ -187,7 +187,7 @@ export function RedundancyScanner({
         <div className="flex items-center gap-3">
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Pattern match: _backup, _old, temp_, unused_idx</span>
           <Button 
-            onClick={handleRunScan}
+            onClick={handleRunScan} 
             disabled={isScanning}
             className="h-9 bg-[#1E8E3E] hover:bg-[#1A7F37] text-white text-xs font-bold rounded-lg px-6 shadow-sm gap-2"
           >
@@ -252,21 +252,21 @@ export function RedundancyScanner({
                 </span>
                 <div className="flex items-center gap-2">
                   <Button 
-                    onClick={() => openTaskCreation("REDUNDANCY_SCAN")} 
+                    onClick={() => openTaskCreation("Scanning")} 
                     className="h-10 px-6 rounded-full bg-white hover:bg-emerald-50 text-emerald-600 border border-emerald-100 font-bold shadow-sm gap-2"
                   >
                     <ShieldCheck className="h-4 w-4" />
                     Mark Safe
                   </Button>
                   <Button 
-                    onClick={() => openTaskCreation("ARCHIVE_JOB")} 
+                    onClick={() => openTaskCreation("Archiving")} 
                     className="h-10 px-6 rounded-full bg-white hover:bg-amber-50 text-amber-600 border border-amber-100 font-bold shadow-sm gap-2"
                   >
                     <Archive className="h-4 w-4" />
                     Archive
                   </Button>
                   <Button 
-                    onClick={() => openTaskCreation("HISTORY_CLEANUP")} 
+                    onClick={() => openTaskCreation("Multi-Task")} 
                     className="h-10 px-6 rounded-full bg-white hover:bg-rose-50 text-rose-600 border border-rose-100 font-bold shadow-sm gap-2"
                   >
                     <Trash2 className="h-4 w-4" />
@@ -365,9 +365,7 @@ export function RedundancyScanner({
         <DialogContent className="sm:max-w-[550px] rounded-[2rem]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-xl font-bold">
-              {selectedAction === 'REDUNDANCY_SCAN' ? <ShieldCheck className="h-6 w-6 text-emerald-500" /> : 
-               selectedAction === 'ARCHIVE_JOB' ? <Archive className="h-6 w-6 text-amber-500" /> : 
-               <Trash2 className="h-6 w-6 text-rose-500" />}
+              <ShieldCheck className="h-6 w-6 text-emerald-500" />
               Configure Maintenance Task
             </DialogTitle>
             <DialogDescription className="text-sm font-medium">
@@ -392,14 +390,14 @@ export function RedundancyScanner({
                   <SelectValue placeholder="Select Action" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="REDUNDANCY_SCAN">Redundancy Check</SelectItem>
-                  <SelectItem value="ARCHIVE_JOB">Archive Historical Data</SelectItem>
-                  <SelectItem value="HISTORY_CLEANUP">Drop/Cleanup Object</SelectItem>
+                  <SelectItem value="Scanning">Redundancy Check</SelectItem>
+                  <SelectItem value="Archiving">Archive Historical Data</SelectItem>
+                  <SelectItem value="Multi-Task">Cleanup Object</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
-            {(selectedAction === 'ARCHIVE_JOB' || selectedAction === 'ARCHIVE_CLEANUP') && (
+            {selectedAction === 'Archiving' && (
               <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2">
                 <div className="space-y-2">
                   <Label className="text-sm font-bold text-slate-700">Target Database</Label>
@@ -451,9 +449,9 @@ export function RedundancyScanner({
               disabled={!taskName || !selectedAction} 
               className={cn(
                 "font-bold h-11 px-10 rounded-xl shadow-lg text-white",
-                selectedAction === 'REDUNDANCY_SCAN' ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-100" :
-                selectedAction === 'ARCHIVE_JOB' ? "bg-amber-600 hover:bg-amber-700 shadow-amber-100" :
-                "bg-rose-600 hover:bg-rose-700 shadow-rose-100"
+                selectedAction === 'Scanning' ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-100" :
+                selectedAction === 'Archiving' ? "bg-amber-600 hover:bg-amber-700 shadow-amber-100" :
+                "bg-slate-600 hover:bg-slate-700 shadow-slate-100"
               )}
             >
               Confirm & Create Task

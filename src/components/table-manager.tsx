@@ -83,28 +83,11 @@ const ALL_MOCK_TABLES: TableData[] = [
 ]
 
 const JOB_TYPES: { id: MaintenanceAction; label: string; icon: any; color: string; bg: string; border: string }[] = [
-  { id: 'HEALTH_SCAN', label: 'Health Scan', icon: ShieldAlert, color: 'text-purple-500', bg: 'bg-purple-50', border: 'border-purple-100' },
-  { id: 'DATABASE_STATISTICS', label: 'DB Stats', icon: Database, color: 'text-blue-500', bg: 'bg-blue-50', border: 'border-blue-100' },
-  { id: 'TABLE_STATISTICS', label: 'Table Stats', icon: TableIcon, color: 'text-slate-500', bg: 'bg-slate-50', border: 'border-slate-100' },
-  { id: 'PERFORMANCE_SCAN', label: 'Perf Scan', icon: Activity, color: 'text-rose-500', bg: 'bg-rose-50', border: 'border-rose-100' },
-  { id: 'CACHE_STATISTICS', label: 'Cache Stats', icon: Zap, color: 'text-amber-500', bg: 'bg-amber-50', border: 'border-amber-100' },
-  { id: 'FRAGMENTATION_SCAN', label: 'Frag Scan', icon: ShieldAlert, color: 'text-rose-500', bg: 'bg-rose-50', border: 'border-rose-100' },
-  { id: 'DEADLOCK_COLLECTOR', label: 'Deadlocks', icon: Activity, color: 'text-rose-500', bg: 'bg-rose-50', border: 'border-rose-100' },
-  { id: 'LOCK_WAIT_COLLECTOR', label: 'Lock Waits', icon: Clock, color: 'text-amber-500', bg: 'bg-amber-50', border: 'border-amber-100' },
-  { id: 'BLOCKING_COLLECTOR', label: 'Blocking', icon: ShieldAlert, color: 'text-rose-500', bg: 'bg-rose-50', border: 'border-rose-100' },
-  { id: 'SLOW_QUERY_COLLECTOR', label: 'Slow Queries', icon: Clock, color: 'text-amber-500', bg: 'bg-amber-50', border: 'border-amber-100' },
-  { id: 'MISSING_INDEX_SCAN', label: 'Missing Index', icon: SearchIcon, color: 'text-blue-500', bg: 'bg-blue-50', border: 'border-blue-100' },
-  { id: 'REDUNDANCY_SCAN', label: 'Redundancy', icon: ShieldAlert, color: 'text-purple-500', bg: 'bg-purple-50', border: 'border-purple-100' },
-  { id: 'ARCHIVE_JOB', label: 'Archive Job', icon: Archive, color: 'text-emerald-500', bg: 'bg-emerald-50', border: 'border-emerald-100' },
-  { id: 'ARCHIVE_CLEANUP', label: 'Archive Cleanup', icon: RefreshCw, color: 'text-emerald-500', bg: 'bg-emerald-50', border: 'border-emerald-100' },
-  { id: 'INDEX_REORGANIZE', label: 'Idx Reorg', icon: Zap, color: 'text-blue-500', bg: 'bg-blue-50', border: 'border-blue-100' },
-  { id: 'INDEX_REBUILD', label: 'Idx Rebuild', icon: Zap, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100' },
-  { id: 'STATISTICS_UPDATE', label: 'Update Stats', icon: RefreshCw, color: 'text-emerald-500', bg: 'bg-emerald-50', border: 'border-emerald-100' },
-  { id: 'ALERT_PROCESSOR', label: 'Alert Proc', icon: ShieldAlert, color: 'text-rose-500', bg: 'bg-rose-50', border: 'border-rose-100' },
-  { id: 'NOTIFICATION_JOB', label: 'Notify', icon: ShieldAlert, color: 'text-blue-500', bg: 'bg-blue-50', border: 'border-blue-100' },
-  { id: 'REPORT_GENERATION', label: 'Reports', icon: History, color: 'text-slate-500', bg: 'bg-slate-50', border: 'border-slate-100' },
-  { id: 'HISTORY_CLEANUP', label: 'Hist Cleanup', icon: RefreshCw, color: 'text-slate-500', bg: 'bg-slate-50', border: 'border-slate-100' },
-  { id: 'FULL_SCAN', label: 'Full Scan', icon: ShieldAlert, color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-100' },
+  { id: 'Archiving', label: 'Archiving', icon: Archive, color: 'text-emerald-500', bg: 'bg-emerald-50', border: 'border-emerald-100' },
+  { id: 'Index Rebuild', label: 'Index Rebuild', icon: Zap, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100' },
+  { id: 'Update Stats', label: 'Update Stats', icon: RefreshCw, color: 'text-amber-500', bg: 'bg-amber-50', border: 'border-amber-100' },
+  { id: 'Scanning', label: 'Scanning', icon: SearchIcon, color: 'text-purple-500', bg: 'bg-purple-50', border: 'border-purple-100' },
+  { id: 'Multi-Task', label: 'Multi-Task', icon: ShieldAlert, color: 'text-slate-500', bg: 'bg-slate-50', border: 'border-slate-100' },
 ]
 
 export function TableManager({ 
@@ -125,7 +108,7 @@ export function TableManager({
   const [selectedTableForDetails, setSelectedTableForDetails] = React.useState<TableData | null>(null)
   const [isTaskModalOpen, setIsTaskModalOpen] = React.useState(false)
   const [taskName, setTaskName] = React.useState("")
-  const [selectedAction, setSelectedAction] = React.useState<MaintenanceAction>('HEALTH_SCAN')
+  const [selectedAction, setSelectedAction] = React.useState<MaintenanceAction>('Archiving')
   const [targetDatabase, setTargetDatabase] = React.useState("")
   const [targetTable, setTargetTable] = React.useState("")
 
@@ -183,24 +166,15 @@ export function TableManager({
 
   const openTaskCreation = () => {
     setTaskName(`Task - ${new Date().toLocaleDateString()}`)
-    setSelectedAction('HEALTH_SCAN')
+    setSelectedAction('Archiving')
     setTargetDatabase("")
     setTargetTable("")
     setIsTaskModalOpen(true)
   }
 
   const handleFinalizeTask = () => {
-    if (!selectedAction) {
-      toast({
-        variant: "destructive",
-        title: "Action Required",
-        description: "Please select a maintenance job type.",
-      })
-      return
-    }
-
-    const isArchival = selectedAction === 'ARCHIVE_JOB' || selectedAction === 'ARCHIVE_CLEANUP'
-    if (isArchival && (!targetDatabase || !targetTable)) {
+    const isArchiving = selectedAction === 'Archiving'
+    if (isArchiving && (!targetDatabase || !targetTable)) {
       toast({
         variant: "destructive",
         title: "Archival Targets Required",
@@ -215,8 +189,8 @@ export function TableManager({
       server: serverName,
       database: activeDb,
       tables: [...selectedTables],
-      targetDatabase: isArchival ? targetDatabase : undefined,
-      targetTable: isArchival ? targetTable : undefined
+      targetDatabase: isArchiving ? targetDatabase : undefined,
+      targetTable: isArchiving ? targetTable : undefined
     })
     setIsTaskModalOpen(false)
     setSelectedTables([])
@@ -421,31 +395,23 @@ export function TableManager({
               <Input id="task-name" value={taskName} onChange={(e) => setTaskName(e.target.value)} placeholder="e.g., Weekly Audit Scan" className="h-11 border-slate-200 rounded-xl" />
             </div>
 
-            <div className="space-y-4">
-              <Label className="text-sm font-bold text-slate-700">Select Maintenance Type</Label>
-              <ScrollArea className="h-[200px] border border-slate-100 rounded-xl bg-slate-50/50 p-2">
-                <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-2">
+              <Label className="text-sm font-bold text-slate-700">Maintenance Type</Label>
+              <Select value={selectedAction} onValueChange={(v: MaintenanceAction) => setSelectedAction(v)}>
+                <SelectTrigger className="h-11 border-slate-200 rounded-xl bg-white">
+                  <SelectValue placeholder="Select Action" />
+                </SelectTrigger>
+                <SelectContent>
                   {JOB_TYPES.map((action) => (
-                    <Button
-                      key={action.id}
-                      variant="outline"
-                      onClick={() => setSelectedAction(action.id)}
-                      className={cn(
-                        "h-10 px-4 rounded-xl border font-bold text-[10px] justify-start gap-2 transition-all",
-                        selectedAction === action.id 
-                          ? `${action.bg} ${action.color} border-primary/30 ring-2 ring-primary/10` 
-                          : "bg-white text-slate-500 border-slate-200"
-                      )}
-                    >
-                      <action.icon className={cn("h-3.5 w-3.5", selectedAction === action.id ? action.color : "text-slate-400")} />
+                    <SelectItem key={action.id} value={action.id}>
                       {action.label}
-                    </Button>
+                    </SelectItem>
                   ))}
-                </div>
-              </ScrollArea>
+                </SelectContent>
+              </Select>
             </div>
 
-            {(selectedAction === 'ARCHIVE_JOB' || selectedAction === 'ARCHIVE_CLEANUP') && (
+            {selectedAction === 'Archiving' && (
               <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2">
                 <div className="space-y-2">
                   <Label className="text-sm font-bold text-slate-700">Target Database</Label>
@@ -456,7 +422,6 @@ export function TableManager({
                     <SelectContent>
                       <SelectItem value="ArchiveDB_PROD">ArchiveDB_PROD</SelectItem>
                       <SelectItem value="MPM_HISTORICAL_STAGING">MPM_HISTORICAL_STAGING</SelectItem>
-                      <SelectItem value="Reporting_Archive_V2">Reporting_Archive_V2</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -469,7 +434,6 @@ export function TableManager({
                     <SelectContent>
                       <SelectItem value="MPM_ARCHIVE_MAIN">MPM_ARCHIVE_MAIN</SelectItem>
                       <SelectItem value="HIST_AUDIT_LOGS">HIST_AUDIT_LOGS</SelectItem>
-                      <SelectItem value="DYNAMIC_DESTINATION">Use Source Name</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
