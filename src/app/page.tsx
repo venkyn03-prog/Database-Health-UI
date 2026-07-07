@@ -40,6 +40,7 @@ export type MaintenanceTask = {
   id: string
   name: string
   type: MaintenanceAction
+  jobCategory?: string // Specific classification (e.g. HEALTH_SCAN, DEADLOCK_COLLECTOR)
   server: string
   database: string
   tables: string[]
@@ -109,6 +110,7 @@ const DEFAULT_TASKS: MaintenanceTask[] = [
     id: "task-1",
     name: "Q4 Data Cleanup",
     type: "Archiving",
+    jobCategory: "ARCHIVE_JOB",
     server: "SQLSRV-PROD-01",
     database: "WebPortalDB",
     tables: ["WEB_FILE_UPLOAD_2009", "WEB_FILE_BYTES_2009"],
@@ -124,6 +126,7 @@ const DEFAULT_TASKS: MaintenanceTask[] = [
     id: "task-2",
     name: "Monthly Index Tuning",
     type: "Index Rebuild",
+    jobCategory: "INDEX_REBUILD",
     server: "SQLSRV-PROD-01",
     database: "WebPortalDB",
     tables: ["WEB_AUTH_DETAILS", "WEB_AUTH_NOTES"],
@@ -134,6 +137,7 @@ const DEFAULT_TASKS: MaintenanceTask[] = [
     id: "task-3",
     name: "Daily Stats Refresh",
     type: "Update Stats",
+    jobCategory: "STATISTICS_UPDATE",
     server: "SQLSRV-PROD-01",
     database: "WebPortalDB",
     tables: ["USERS", "USER_PROVIDERS"],

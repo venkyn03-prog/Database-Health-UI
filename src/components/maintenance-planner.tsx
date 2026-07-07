@@ -17,7 +17,8 @@ import {
   Search,
   LayoutGrid,
   AlertTriangle,
-  History
+  History,
+  CheckCircle2
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -64,6 +65,31 @@ import { cn } from "@/lib/utils"
 
 const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
+const JOB_CATEGORIES = [
+  'HEALTH_SCAN',
+  'DATABASE_STATISTICS',
+  'TABLE_STATISTICS',
+  'PERFORMANCE_SCAN',
+  'CACHE_STATISTICS',
+  'FRAGMENTATION_SCAN',
+  'DEADLOCK_COLLECTOR',
+  'LOCK_WAIT_COLLECTOR',
+  'BLOCKING_COLLECTOR',
+  'SLOW_QUERY_COLLECTOR',
+  'MISSING_INDEX_SCAN',
+  'REDUNDANCY_SCAN',
+  'ARCHIVE_JOB',
+  'ARCHIVE_CLEANUP',
+  'INDEX_REORGANIZE',
+  'INDEX_REBUILD',
+  'STATISTICS_UPDATE',
+  'ALERT_PROCESSOR',
+  'NOTIFICATION_JOB',
+  'REPORT_GENERATION',
+  'HISTORY_CLEANUP',
+  'FULL_SCAN'
+]
+
 export function MaintenancePlanner({ 
   tasks, 
   onUpdateTask,
@@ -80,7 +106,8 @@ export function MaintenancePlanner({
   
   const [selectedTaskId, setSelectedTaskId] = React.useState<string>("")
   const [jobName, setJobName] = React.useState("")
-  const [jobType, setJobType] = React.useState<'One-Time' | 'Recurring'>('Recurring')
+  const [jobCategory, setJobCategory] = React.useState<string>("")
+  const [executionPattern, setExecutionPattern] = React.useState<'One-Time' | 'Recurring'>('Recurring')
   
   const [scheduleForm, setScheduleForm] = React.useState<ScheduleConfig>({
     frequency: 'Daily',
@@ -109,14 +136,16 @@ export function MaintenancePlanner({
 
       onUpdateTask(selectedTaskId, {
         name: jobName || task?.name,
+        jobCategory: jobCategory || task?.jobCategory,
         status: 'scheduled',
-        schedule: jobType === 'One-Time' ? { ...scheduleForm, frequency: 'Daily', endDate: scheduleForm.startDate } : scheduleForm
+        schedule: executionPattern === 'One-Time' ? { ...scheduleForm, frequency: 'Daily', endDate: scheduleForm.startDate } : scheduleForm
       })
       
       setIsCreateModalOpen(false)
       setIsEditModalOpen(false)
       setSelectedTaskId("")
       setJobName("")
+      setJobCategory("")
       toast({
         title: isEditModalOpen ? "Schedule Updated" : "Schedule Created",
         description: `"${jobName || task?.name}" is now active.`
@@ -127,9 +156,10 @@ export function MaintenancePlanner({
   const openEditModal = (task: MaintenanceTask) => {
     setSelectedTaskId(task.id)
     setJobName(task.name)
+    setJobCategory(task.jobCategory || "")
     if (task.schedule) {
       setScheduleForm(task.schedule)
-      setJobType(task.schedule.startDate === task.schedule.endDate ? 'One-Time' : 'Recurring')
+      setExecutionPattern(task.schedule.startDate === task.schedule.endDate ? 'One-Time' : 'Recurring')
     }
     setIsEditModalOpen(true)
   }
@@ -167,7 +197,9 @@ export function MaintenancePlanner({
       endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
     })
     setJobName("")
-    setJobType('Recurring')
+    setJobCategory("")
+    setExecutionPattern('Recurring')
+    setSelectedTaskId("")
   }
 
   return (
@@ -198,7 +230,8 @@ export function MaintenancePlanner({
             <TableHeader className="bg-slate-50/50">
               <TableRow className="hover:bg-transparent border-none">
                 <TableHead className="h-12 px-8 text-[10px] font-bold uppercase text-slate-400">Job Name</TableHead>
-                <TableHead className="h-12 text-[10px] font-bold uppercase text-slate-400">Job Type</TableHead>
+                <TableHead className="h-12 text-[10px] font-bold uppercase text-slate-400">Category</TableHead>
+                <TableHead className="h-12 text-[10px] font-bold uppercase text-slate-400">Pattern</TableHead>
                 <TableHead className="h-12 text-[10px] font-bold uppercase text-slate-400">Frequency</TableHead>
                 <TableHead className="h-12 text-[10px] font-bold uppercase text-slate-400">Server/DB</TableHead>
                 <TableHead className="h-12 text-[10px] font-bold uppercase text-slate-400">Schedule Details</TableHead>
@@ -208,7 +241,7 @@ export function MaintenancePlanner({
             <TableBody>
               {scheduledTasks.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="py-20 text-center">
+                  <TableCell colSpan={7} className="py-20 text-center">
                     <div className="flex flex-col items-center justify-center space-y-3 opacity-30">
                       <Calendar className="h-12 w-12" />
                       <span className="text-sm font-bold uppercase tracking-widest">No Active Schedules</span>
@@ -239,6 +272,11 @@ export function MaintenancePlanner({
                             </span>
                           </div>
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="text-[9px] font-bold uppercase border-none bg-slate-50 text-slate-600">
+                          {task.jobCategory || 'GENERAL'}
+                        </Badge>
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline" className={cn(
@@ -317,7 +355,10 @@ export function MaintenancePlanner({
               <Select value={selectedTaskId} onValueChange={(val) => {
                 setSelectedTaskId(val);
                 const task = tasks.find(t => t.id === val);
-                if (task) setJobName(task.name);
+                if (task) {
+                  setJobName(task.name);
+                  setJobCategory(task.jobCategory || "");
+                }
               }}>
                 <SelectTrigger className="h-11 border-slate-200">
                   <SelectValue placeholder="Pick a task..." />
@@ -340,9 +381,23 @@ export function MaintenancePlanner({
               />
             </div>
 
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold">Job Type (Category)</Label>
+              <Select value={jobCategory} onValueChange={setJobCategory}>
+                <SelectTrigger className="h-11 border-slate-200">
+                  <SelectValue placeholder="Select Category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {JOB_CATEGORIES.map(cat => (
+                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="space-y-3">
               <Label className="text-sm font-semibold">Execution Pattern</Label>
-              <RadioGroup value={jobType} onValueChange={(v: any) => setJobType(v)} className="flex gap-4">
+              <RadioGroup value={executionPattern} onValueChange={(v: any) => setExecutionPattern(v)} className="flex gap-4">
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="One-Time" id="one-time" />
                   <Label htmlFor="one-time" className="cursor-pointer">One-Time</Label>
@@ -354,7 +409,7 @@ export function MaintenancePlanner({
               </RadioGroup>
             </div>
 
-            {jobType === 'Recurring' && (
+            {executionPattern === 'Recurring' && (
               <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold">Frequency</Label>
@@ -414,7 +469,7 @@ export function MaintenancePlanner({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-sm font-semibold text-slate-500">
-                  {jobType === 'One-Time' ? 'Execution Date' : 'Start Date'}
+                  {executionPattern === 'One-Time' ? 'Execution Date' : 'Start Date'}
                 </Label>
                 <Input 
                   type="date" 
@@ -424,7 +479,7 @@ export function MaintenancePlanner({
                   className="h-11 border-slate-200"
                 />
               </div>
-              {jobType === 'Recurring' && (
+              {executionPattern === 'Recurring' && (
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold text-slate-500">End Date</Label>
                   <Input 
@@ -441,7 +496,7 @@ export function MaintenancePlanner({
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsCreateModalOpen(false)}>Cancel</Button>
             <Button 
-              disabled={!selectedTaskId || !jobName}
+              disabled={!selectedTaskId || !jobName || !jobCategory}
               onClick={handleFinalizeSchedule} 
               className="bg-primary hover:bg-primary/90 text-white font-bold"
             >
@@ -472,9 +527,23 @@ export function MaintenancePlanner({
               />
             </div>
 
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold">Job Type (Category)</Label>
+              <Select value={jobCategory} onValueChange={setJobCategory}>
+                <SelectTrigger className="h-11 border-slate-200">
+                  <SelectValue placeholder="Select Category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {JOB_CATEGORIES.map(cat => (
+                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="space-y-3">
               <Label className="text-sm font-semibold">Execution Pattern</Label>
-              <RadioGroup value={jobType} onValueChange={(v: any) => setJobType(v)} className="flex gap-4">
+              <RadioGroup value={executionPattern} onValueChange={(v: any) => setExecutionPattern(v)} className="flex gap-4">
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="One-Time" id="edit-one-time" />
                   <Label htmlFor="edit-one-time" className="cursor-pointer">One-Time</Label>
@@ -486,7 +555,7 @@ export function MaintenancePlanner({
               </RadioGroup>
             </div>
 
-            {jobType === 'Recurring' && (
+            {executionPattern === 'Recurring' && (
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold">Frequency</Label>
@@ -546,7 +615,7 @@ export function MaintenancePlanner({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-sm font-semibold text-slate-500">
-                  {jobType === 'One-Time' ? 'Execution Date' : 'Start Date'}
+                  {executionPattern === 'One-Time' ? 'Execution Date' : 'Start Date'}
                 </Label>
                 <Input 
                   type="date" 
@@ -556,7 +625,7 @@ export function MaintenancePlanner({
                   className="h-11 border-slate-200"
                 />
               </div>
-              {jobType === 'Recurring' && (
+              {executionPattern === 'Recurring' && (
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold text-slate-500">End Date</Label>
                   <Input 
