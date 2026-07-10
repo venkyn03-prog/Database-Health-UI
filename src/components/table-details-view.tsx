@@ -132,7 +132,7 @@ export function TableDetailsView({ table }: { table: TableData }) {
           <CardContent className="p-10 pt-6">
             <div className="h-[340px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={CHART_DATA} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <AreaChart data={CHART_DATA} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorSize" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.15}/>
@@ -140,10 +140,37 @@ export function TableDetailsView({ table }: { table: TableData }) {
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 600 }} dy={10} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 600 }} domain={[0, 260]} ticks={[0, 65, 130, 195, 260]} />
-                  <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
-                  <Area type="monotone" dataKey="size" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorSize)" />
+                  <XAxis 
+                    dataKey="month" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 600 }} 
+                    dy={10} 
+                  />
+                  <YAxis 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 600 }} 
+                    domain={[0, 300]} 
+                    ticks={[0, 50, 100, 150, 200, 250, 300]}
+                    tickFormatter={(value) => `${value} GB`}
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      borderRadius: '12px', 
+                      border: 'none', 
+                      boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' 
+                    }} 
+                    formatter={(value) => [`${value} GB`, 'Table Size']}
+                  />
+                  <Area 
+                    type="monotone" 
+                    dataKey="size" 
+                    stroke="#3b82f6" 
+                    strokeWidth={3} 
+                    fillOpacity={1} 
+                    fill="url(#colorSize)" 
+                  />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
