@@ -40,7 +40,7 @@ export type MaintenanceTask = {
   id: string
   name: string
   type: MaintenanceAction
-  jobCategory?: string // Specific classification (e.g. HEALTH_SCAN, DEADLOCK_COLLECTOR)
+  jobCategory?: string
   server: string
   database: string
   tables: string[]
@@ -48,7 +48,6 @@ export type MaintenanceTask = {
   status?: 'pending' | 'scheduled'
   schedule?: ScheduleConfig
   targetDatabase?: string
-  tableMappings?: Record<string, string> // Source table -> Target table mapping
 }
 
 export type DatabaseInstance = {
@@ -116,11 +115,7 @@ const DEFAULT_TASKS: MaintenanceTask[] = [
     tables: ["WEB_FILE_UPLOAD_2009", "WEB_FILE_BYTES_2009"],
     createdAt: "2024-03-10T14:30:00Z",
     status: 'pending',
-    targetDatabase: "ReportingDB",
-    tableMappings: {
-      "WEB_FILE_UPLOAD_2009": "MPM_ARCHIVE_MAIN",
-      "WEB_FILE_BYTES_2009": "HIST_AUDIT_LOGS"
-    }
+    targetDatabase: "ReportingDB"
   },
   {
     id: "task-2",
